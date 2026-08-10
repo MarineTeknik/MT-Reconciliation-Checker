@@ -3,24 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TravelBank ↔ Business Central Reconciliation</title>
+<title>Reconciliation — TravelBank / Business Central</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --ink:#0f1720;
-    --ink-soft:#4a5568;
-    --paper:#f6f7f9;
+    --navy:#0b2540;
+    --navy-2:#132d4b;
+    --gold:#b6912c;
+    --gold-soft:#f4ecd8;
+    --paper:#eef1f5;
     --panel:#ffffff;
-    --line:#dfe3e8;
-    --accent:#1f5c4a;
-    --accent-soft:#e4efe9;
-    --amber:#8a5a12;
+    --line:#d9dee6;
+    --line-soft:#e8ebef;
+    --ink:#0f1f30;
+    --ink-soft:#5b6b7c;
+    --ink-faint:#8b98a6;
+    --emerald:#0e6b5c;
+    --emerald-soft:#e3f2ee;
+    --emerald-line:#bfe0d6;
+    --amber:#96590a;
     --amber-soft:#fbeed7;
-    --red:#8a2f2f;
-    --red-soft:#faeaea;
-    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-    --sans: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    --amber-line:#eeceA0;
+    --rose:#a3242c;
+    --rose-soft:#fbe9ea;
+    --rose-line:#f0c3c6;
+    --serif:'Newsreader', Georgia, serif;
+    --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
   }
   *{box-sizing:border-box;}
   body{
@@ -29,260 +41,466 @@
     color:var(--ink);
     font-family:var(--sans);
     font-size:14px;
-    line-height:1.45;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
   }
-  header{
-    background:var(--ink);
-    color:#fff;
-    padding:22px 28px;
+
+  /* ---------- Masthead ---------- */
+  .masthead{
+    background:linear-gradient(180deg, var(--navy) 0%, var(--navy-2) 100%);
+    color:#eef3f7;
+    padding:28px 36px 22px;
+  }
+  .masthead-inner{
+    max-width:1160px;
+    margin:0 auto;
     display:flex;
-    align-items:baseline;
     justify-content:space-between;
+    align-items:flex-end;
     flex-wrap:wrap;
-    gap:8px;
+    gap:10px;
   }
-  header h1{
-    font-size:18px;
-    margin:0;
+  .wordmark-eyebrow{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:2.2px;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:6px;
+  }
+  .wordmark{
+    font-family:var(--serif);
+    font-size:30px;
     font-weight:600;
     letter-spacing:0.2px;
   }
-  header .tag{
+  .wordmark .light{
+    font-weight:400;
+    font-style:italic;
+    color:#b9c6d3;
+  }
+  .masthead-meta{
     font-family:var(--mono);
     font-size:12px;
-    color:#9fb4ac;
+    color:#9db1c4;
+    text-align:right;
+    line-height:1.6;
   }
+  .masthead-rule{
+    height:2px;
+    background:linear-gradient(90deg, var(--gold), rgba(182,145,44,0) 70%);
+  }
+
   main{
-    max-width:1180px;
+    max-width:1160px;
     margin:0 auto;
-    padding:24px 20px 80px;
+    padding:30px 24px 90px;
   }
-  .step{
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:6px;
-    margin-bottom:18px;
-    overflow:hidden;
+
+  /* ---------- Stepper ---------- */
+  .stepper{
+    display:flex;
+    align-items:center;
+    margin-bottom:26px;
+    padding:0 4px;
   }
-  .step-head{
+  .stepper .step-item{
     display:flex;
     align-items:center;
     gap:10px;
-    padding:14px 18px;
-    border-bottom:1px solid var(--line);
-    background:#fbfbfc;
+    color:var(--ink-faint);
   }
-  .step-num{
-    width:22px;height:22px;border-radius:50%;
-    background:var(--ink);color:#fff;
-    font-size:12px;font-weight:700;
+  .stepper .step-item.active{color:var(--navy);}
+  .stepper .dot{
+    width:26px;height:26px;border-radius:50%;
+    border:1.5px solid var(--line);
     display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:12px;font-weight:600;
+    background:#fff;
     flex-shrink:0;
   }
-  .step-head h2{
-    font-size:14px;margin:0;font-weight:600;
+  .stepper .step-item.active .dot{
+    border-color:var(--gold);
+    color:var(--navy);
+    background:var(--gold-soft);
   }
-  .step-head .hint{
+  .stepper .step-label{
+    font-size:12.5px;
+    font-weight:600;
+    letter-spacing:0.2px;
+  }
+  .stepper .connector{
+    flex:1;
+    height:1px;
+    background:var(--line);
+    margin:0 14px;
+  }
+
+  /* ---------- Panels ---------- */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    margin-bottom:20px;
+    overflow:hidden;
+    box-shadow:0 1px 2px rgba(15,31,48,0.03);
+  }
+  .panel-head{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    padding:18px 22px 14px;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .panel-head .num{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--gold);
+    letter-spacing:1px;
+  }
+  .panel-head h2{
+    font-family:var(--serif);
+    font-size:19px;
+    font-weight:600;
+    margin:0;
+    color:var(--navy);
+  }
+  .panel-head .hint{
     margin-left:auto;
     font-size:12px;
+    color:var(--ink-faint);
+    font-style:italic;
+  }
+  .panel-body{padding:22px;}
+
+  /* ---------- Dropzones ---------- */
+  .drop-row{display:flex;gap:16px;flex-wrap:wrap;}
+  .dropzone{
+    flex:1;
+    min-width:260px;
+    border:1.5px dashed var(--line);
+    border-radius:6px;
+    background:#fbfcfd;
+    padding:26px 18px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    position:relative;
+  }
+  .dropzone:hover, .dropzone.dragover{
+    border-color:var(--gold);
+    background:var(--gold-soft);
+  }
+  .dropzone .dz-icon{
+    font-family:var(--serif);
+    font-size:22px;
+    color:var(--navy);
+    margin-bottom:6px;
+  }
+  .dropzone .dz-label{
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:1.2px;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+  }
+  .dropzone .dz-text{
+    font-size:13px;
     color:var(--ink-soft);
   }
-  .step-body{
-    padding:18px;
+  .dropzone .dz-file{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--emerald);
+    margin-top:8px;
+    word-break:break-all;
   }
-  .step-body.collapsed{display:none;}
-  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;}
+  .dropzone input[type=file]{display:none;}
+
+  .field-inline{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    align-items:flex-end;
+    margin-top:16px;
+  }
   .field{display:flex;flex-direction:column;gap:5px;}
-  .field label{font-size:12px;color:var(--ink-soft);font-weight:600;}
-  input[type=file]{
-    font-size:13px;
+  .field label{
+    font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;
+    color:var(--ink-soft);
   }
   select, input[type=number], input[type=text]{
     border:1px solid var(--line);
-    border-radius:4px;
-    padding:7px 9px;
+    border-radius:5px;
+    padding:8px 10px;
     font-size:13px;
     font-family:var(--sans);
     background:#fff;
     color:var(--ink);
-    min-width:170px;
+    min-width:180px;
   }
+  select:focus, input:focus{outline:2px solid var(--gold-soft);border-color:var(--gold);}
+
   button{
     border:none;
-    border-radius:4px;
-    padding:9px 16px;
+    border-radius:5px;
+    padding:10px 18px;
     font-size:13px;
     font-weight:600;
+    font-family:var(--sans);
     cursor:pointer;
-    background:var(--accent);
+    background:var(--navy);
     color:#fff;
+    letter-spacing:0.2px;
   }
-  button:hover{opacity:0.92;}
-  button.secondary{
-    background:#fff;
-    color:var(--ink);
-    border:1px solid var(--line);
-  }
+  button:hover{background:var(--navy-2);}
+  button:disabled{opacity:0.4;cursor:not-allowed;}
+  button.gold{background:var(--gold);color:#2b2205;}
+  button.gold:hover{background:#a5811f;}
   button.ghost{
     background:transparent;
     color:var(--ink-soft);
     border:1px solid var(--line);
-    padding:5px 10px;
+    padding:6px 12px;
     font-size:12px;
-    font-weight:500;
+    font-weight:600;
   }
-  button:disabled{opacity:0.45;cursor:not-allowed;}
+  button.ghost:hover{background:#f4f6f8;color:var(--ink);}
+
+  details.advanced{margin-top:14px;}
+  details.advanced summary{
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-soft);
+    cursor:pointer;
+    list-style:none;
+  }
+  details.advanced summary::-webkit-details-marker{display:none;}
+  details.advanced summary::before{content:"▸ ";color:var(--gold);}
+  details.advanced[open] summary::before{content:"▾ ";}
+  details.advanced .adv-body{padding-top:10px;}
+
   .status-line{
-    margin-top:10px;
+    margin-top:12px;
     font-family:var(--mono);
     font-size:12px;
     color:var(--ink-soft);
     white-space:pre-wrap;
   }
-  .status-line.err{color:var(--red);}
-  .status-line.ok{color:var(--accent);}
-  table{
-    width:100%;
-    border-collapse:collapse;
-    font-size:12.5px;
-  }
+  .status-line.err{color:var(--rose);}
+  .status-line.ok{color:var(--emerald);}
+
+  /* ---------- Tables ---------- */
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
   th{
     text-align:left;
-    background:#f1f2f4;
-    padding:7px 9px;
+    background:#f5f7f9;
+    padding:8px 10px;
     border-bottom:1px solid var(--line);
-    font-size:11.5px;
+    font-size:10.5px;
     text-transform:uppercase;
-    letter-spacing:0.4px;
+    letter-spacing:0.6px;
     color:var(--ink-soft);
-    position:sticky;
-    top:0;
+    font-weight:700;
+    position:sticky;top:0;
   }
   td{
-    padding:6px 9px;
-    border-bottom:1px solid #eef0f2;
+    padding:7px 10px;
+    border-bottom:1px solid var(--line-soft);
     vertical-align:top;
+    font-variant-numeric:tabular-nums;
   }
   td[contenteditable=true]{outline:none;}
-  td[contenteditable=true]:focus{background:#fffbe6;}
+  td[contenteditable=true]:focus{background:var(--gold-soft);}
   .num{text-align:right;font-family:var(--mono);white-space:nowrap;}
   .table-wrap{
-    max-height:340px;
-    overflow:auto;
-    border:1px solid var(--line);
-    border-radius:4px;
+    max-height:340px;overflow:auto;
+    border:1px solid var(--line);border-radius:6px;
   }
   .table-wrap table{margin:0;}
-  .row-del{
-    color:var(--red);
-    cursor:pointer;
-    font-size:12px;
-    text-align:center;
-  }
-  .mini{font-size:11.5px;color:var(--ink-soft);}
-  .summary-cards{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
-    gap:10px;
-    margin-bottom:16px;
-  }
-  .card{
-    border:1px solid var(--line);
-    border-radius:6px;
-    background:#fff;
-    padding:12px 14px;
-  }
-  .card .n{font-family:var(--mono);font-size:22px;font-weight:700;}
-  .card .l{font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px;}
-  .card.matched{border-color:var(--accent);background:var(--accent-soft);}
-  .card.amber{border-color:var(--amber);background:var(--amber-soft);}
-  .card.red{border-color:var(--red);background:var(--red-soft);}
-  .results-tabs{
-    display:flex;
-    gap:2px;
-    margin-bottom:0;
-    border-bottom:1px solid var(--line);
-  }
-  .tab-btn{
-    background:transparent;
-    color:var(--ink-soft);
-    border:none;
-    border-bottom:2px solid transparent;
-    border-radius:0;
-    padding:9px 14px;
-    font-weight:600;
-  }
-  .tab-btn.active{
-    color:var(--ink);
-    border-bottom:2px solid var(--ink);
-  }
-  .tab-panel{display:none;padding-top:12px;}
-  .tab-panel.active{display:block;}
-  .badge{
-    display:inline-block;
-    padding:2px 7px;
-    border-radius:3px;
-    font-size:11px;
-    font-weight:700;
-    font-family:var(--mono);
-  }
-  .badge.matched{background:var(--accent-soft);color:var(--accent);}
-  .badge.amber{background:var(--amber-soft);color:var(--amber);}
-  .badge.red{background:var(--red-soft);color:var(--red);}
+  .row-del{color:var(--rose);cursor:pointer;font-size:13px;text-align:center;}
+  .mini{font-size:11.5px;color:var(--ink-faint);}
+
   .toolbar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:9px;gap:8px;flex-wrap:wrap;
+  }
+  .empty-state{padding:34px 10px;text-align:center;color:var(--ink-faint);font-size:13px;font-style:italic;}
+
+  /* ---------- Ledger summary (signature element) ---------- */
+  .ledger{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:0;
+    margin-bottom:22px;
+    overflow:hidden;
+    box-shadow:0 1px 2px rgba(15,31,48,0.03);
+  }
+  .ledger-title{
+    font-family:var(--serif);
+    font-size:15px;
+    font-weight:600;
+    color:var(--navy);
+    padding:16px 24px 0;
+  }
+  .ledger-tape{
     display:flex;
-    justify-content:space-between;
+    align-items:stretch;
+    padding:14px 24px 20px;
+    gap:0;
+  }
+  .ledger-item{
+    flex:1;
+    padding:0 20px;
+    border-right:1px dashed var(--line);
+  }
+  .ledger-item:last-child{border-right:none;}
+  .ledger-item .l{
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--ink-faint);
+    font-weight:700;
+  }
+  .ledger-item .v{
+    font-family:var(--mono);
+    font-size:26px;
+    font-weight:600;
+    color:var(--navy);
+    margin-top:4px;
+    font-variant-numeric:tabular-nums;
+  }
+  .ledger-item .v.diff-ok{color:var(--emerald);}
+  .ledger-item .v.diff-bad{color:var(--rose);}
+  .ledger-status{
+    display:inline-flex;
     align-items:center;
-    margin-bottom:8px;
-    gap:8px;
-    flex-wrap:wrap;
+    gap:6px;
+    margin-top:6px;
+    font-family:var(--mono);
+    font-size:11px;
+    font-weight:600;
+    padding:3px 9px;
+    border-radius:20px;
   }
-  .empty-state{
-    padding:30px 10px;
-    text-align:center;
-    color:var(--ink-soft);
-    font-size:13px;
+  .ledger-status.ok{background:var(--emerald-soft);color:var(--emerald);border:1px solid var(--emerald-line);}
+  .ledger-status.bad{background:var(--rose-soft);color:var(--rose);border:1px solid var(--rose-line);}
+  .ledger-status .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+  .count-cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(170px,1fr));
+    gap:10px;
+    margin-bottom:20px;
   }
+  .count-card{
+    border:1px solid var(--line);
+    border-radius:7px;
+    background:#fff;
+    padding:14px 16px;
+  }
+  .count-card .n{font-family:var(--mono);font-size:24px;font-weight:600;color:var(--navy);}
+  .count-card .l{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;}
+  .count-card.matched{border-color:var(--emerald-line);background:var(--emerald-soft);}
+  .count-card.matched .n{color:var(--emerald);}
+  .count-card.rose{border-color:var(--rose-line);background:var(--rose-soft);}
+  .count-card.rose .n{color:var(--rose);}
+  .count-card.amber{border-color:var(--amber-line);background:var(--amber-soft);}
+  .count-card.amber .n{color:var(--amber);}
+
+  /* ---------- Results tabs ---------- */
+  .results-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);}
+  .tab-btn{
+    background:transparent;color:var(--ink-faint);border:none;
+    border-bottom:2px solid transparent;border-radius:0;
+    padding:10px 16px;font-weight:600;font-size:12.5px;
+  }
+  .tab-btn.active{color:var(--navy);border-bottom:2px solid var(--gold);}
+  .tab-panel{display:none;padding-top:14px;}
+  .tab-panel.active{display:block;}
+
+  .badge{
+    display:inline-block;padding:2px 8px;border-radius:20px;
+    font-size:10.5px;font-weight:700;font-family:var(--mono);
+  }
+  .badge.matched{background:var(--emerald-soft);color:var(--emerald);}
+  .badge.amber{background:var(--amber-soft);color:var(--amber);}
+  .badge.rose{background:var(--rose-soft);color:var(--rose);}
+
   footer{
-    text-align:center;
-    font-size:11.5px;
-    color:#9aa1a9;
-    padding:20px;
+    text-align:center;font-size:11.5px;color:var(--ink-faint);
+    padding:24px;font-family:var(--mono);
   }
-  .diff-flag{color:var(--red);font-weight:700;}
+  .step-num-badge{
+    width:22px;height:22px;border-radius:50%;
+    background:var(--navy);color:#fff;
+    font-size:11px;font-weight:700;font-family:var(--mono);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>TravelBank ↔ Business Central Reconciliation</h1>
-  <span class="tag">City National · CC_CITY_NATIONAL</span>
-</header>
+<div class="masthead">
+  <div class="masthead-inner">
+    <div>
+      <div class="wordmark-eyebrow">Statement Reconciliation</div>
+      <div class="wordmark">TravelBank <span class="light">↔</span> Business Central</div>
+    </div>
+    <div class="masthead-meta">
+      City National · CC_CITY_NATIONAL<br>
+      Runs entirely in-browser — no data leaves this device
+    </div>
+  </div>
+</div>
+<div class="masthead-rule"></div>
 
 <main>
 
+  <div class="stepper">
+    <div class="step-item active"><div class="dot">1</div><div class="step-label">Statement</div></div>
+    <div class="connector"></div>
+    <div class="step-item active"><div class="dot">2</div><div class="step-label">Ledger</div></div>
+    <div class="connector"></div>
+    <div class="step-item active"><div class="dot">3</div><div class="step-label">Reconcile</div></div>
+  </div>
+
   <!-- STEP 1: TravelBank PDF -->
-  <div class="step">
-    <div class="step-head">
-      <div class="step-num">1</div>
-      <h2>TravelBank statement (PDF)</h2>
-      <span class="hint">Extracts transaction lines automatically — review and fix before matching</span>
+  <div class="panel">
+    <div class="panel-head">
+      <span class="num">01</span>
+      <h2>Card Statement</h2>
+      <span class="hint">PDF · transaction lines are extracted and editable</span>
     </div>
-    <div class="step-body">
-      <div class="row">
-        <div class="field">
-          <label>PDF statement file</label>
+    <div class="panel-body">
+      <div class="drop-row">
+        <div class="dropzone" id="pdfDropzone">
+          <div class="dz-icon">⎙</div>
+          <div class="dz-label">TravelBank Statement</div>
+          <div class="dz-text">Click or drop the statement PDF here</div>
+          <div class="dz-file" id="pdfFileLabel"></div>
           <input type="file" id="pdfFile" accept="application/pdf">
         </div>
-        <div class="field">
-          <label>Skip lines containing (comma separated)</label>
-          <input type="text" id="pdfSkipWords" value="Total,Subtotal,Page,Balance,Statement,Continued" style="min-width:320px;">
-        </div>
-        <button id="parsePdfBtn" disabled>Extract transactions</button>
       </div>
-      <div class="status-line" id="pdfStatus">Choose the TravelBank PDF statement, then click Extract.</div>
 
-      <div id="pdfPreviewWrap" style="display:none;margin-top:14px;">
+      <details class="advanced">
+        <summary>Advanced options</summary>
+        <div class="adv-body">
+          <div class="field">
+            <label>Skip lines containing</label>
+            <input type="text" id="pdfSkipWords" value="Total,Subtotal,Page,Balance,Statement,Continued" style="min-width:360px;">
+          </div>
+        </div>
+      </details>
+
+      <div class="field-inline">
+        <button id="parsePdfBtn" class="gold" disabled>Extract transactions</button>
+      </div>
+      <div class="status-line" id="pdfStatus">Choose the TravelBank PDF statement, then extract.</div>
+
+      <div id="pdfPreviewWrap" style="display:none;margin-top:16px;">
         <div class="toolbar">
           <span class="mini" id="pdfCount">0 rows extracted</span>
           <div style="display:flex;gap:6px;">
@@ -292,68 +510,58 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead>
-              <tr><th style="width:100px;">Date</th><th>Description</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr>
-            </thead>
+            <thead><tr><th style="width:100px;">Date</th><th>Description</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr></thead>
             <tbody id="pdfTableBody"></tbody>
           </table>
         </div>
-        <div class="mini" style="margin-top:6px;">Click any cell to edit. Delete rows that are headers, subtotals, or noise. Amounts should be numeric (e.g. 128.45).</div>
+        <div class="mini" style="margin-top:6px;">Click any cell to edit. Delete header, subtotal, or noise rows.</div>
       </div>
     </div>
   </div>
 
   <!-- STEP 2: BC Excel -->
-  <div class="step">
-    <div class="step-head">
-      <div class="step-num">2</div>
-      <h2>Business Central export (Excel)</h2>
-      <span class="hint">Your posted transactions — Posted Log or BC Posting Journal export</span>
+  <div class="panel">
+    <div class="panel-head">
+      <span class="num">02</span>
+      <h2>Posted Ledger</h2>
+      <span class="hint">Business Central export · Excel or CSV</span>
     </div>
-    <div class="step-body">
-      <div class="row">
-        <div class="field">
-          <label>Excel file (.xlsx / .csv)</label>
+    <div class="panel-body">
+      <div class="drop-row">
+        <div class="dropzone" id="xlsxDropzone">
+          <div class="dz-icon">▤</div>
+          <div class="dz-label">BC Posting Journal / Posted Log</div>
+          <div class="dz-text">Click or drop the ledger .xlsx / .csv here</div>
+          <div class="dz-file" id="xlsxFileLabel"></div>
           <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv">
         </div>
+      </div>
+
+      <div class="field-inline">
         <div class="field">
           <label>Sheet</label>
           <select id="sheetSelect" disabled><option>—</option></select>
         </div>
       </div>
 
-      <div id="mapWrap" style="display:none;margin-top:14px;">
-        <div class="row">
-          <div class="field">
-            <label>Date column</label>
-            <select id="mapDate"></select>
-          </div>
-          <div class="field">
-            <label>Amount column</label>
-            <select id="mapAmount"></select>
-          </div>
-          <div class="field">
-            <label>Description / Merchant column</label>
-            <select id="mapDesc"></select>
-          </div>
-          <div class="field">
-            <label>Reference (BC Posting No., optional)</label>
-            <select id="mapRef"></select>
-          </div>
+      <div id="mapWrap" style="display:none;margin-top:16px;">
+        <div class="field-inline">
+          <div class="field"><label>Date column</label><select id="mapDate"></select></div>
+          <div class="field"><label>Amount column</label><select id="mapAmount"></select></div>
+          <div class="field"><label>Description / Merchant</label><select id="mapDesc"></select></div>
+          <div class="field"><label>Reference (optional)</label><select id="mapRef"></select></div>
           <button id="applyMapBtn">Load transactions</button>
         </div>
         <div class="status-line" id="xlsxStatus"></div>
 
-        <div id="xlsxPreviewWrap" style="display:none;margin-top:14px;">
+        <div id="xlsxPreviewWrap" style="display:none;margin-top:16px;">
           <div class="toolbar">
             <span class="mini" id="xlsxCount">0 rows loaded</span>
             <button class="ghost" id="xlsxClearAll">Clear all</button>
           </div>
           <div class="table-wrap">
             <table>
-              <thead>
-                <tr><th style="width:100px;">Date</th><th>Description</th><th style="width:120px;">Reference</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr>
-              </thead>
+              <thead><tr><th style="width:100px;">Date</th><th>Description</th><th style="width:120px;">Reference</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr></thead>
               <tbody id="xlsxTableBody"></tbody>
             </table>
           </div>
@@ -364,23 +572,15 @@
   </div>
 
   <!-- STEP 3: Match -->
-  <div class="step">
-    <div class="step-head">
-      <div class="step-num">3</div>
-      <h2>Run reconciliation</h2>
-      <span class="hint">Matches by amount and nearby date</span>
+  <div class="panel">
+    <div class="panel-head">
+      <span class="num">03</span>
+      <h2>Reconcile</h2>
+      <span class="hint">Matches on exact date and amount</span>
     </div>
-    <div class="step-body">
-      <div class="row">
-        <div class="field">
-          <label>Date tolerance (± days)</label>
-          <input type="number" id="dateTolerance" value="5" min="0" max="30" style="min-width:80px;">
-        </div>
-        <div class="field">
-          <label>Amount tolerance ($)</label>
-          <input type="number" id="amtTolerance" value="0.01" min="0" max="5" step="0.01" style="min-width:80px;">
-        </div>
-        <button id="runMatchBtn">Run reconciliation</button>
+    <div class="panel-body">
+      <div class="field-inline">
+        <button id="runMatchBtn" class="gold">Run reconciliation</button>
       </div>
       <div class="status-line" id="matchStatus"></div>
     </div>
@@ -388,27 +588,47 @@
 
   <!-- RESULTS -->
   <div id="resultsWrap" style="display:none;">
-    <div class="summary-cards" id="summaryCards"></div>
 
-    <div class="step">
-      <div class="step-body" style="padding-top:0;">
+    <div class="ledger">
+      <div class="ledger-title">Reconciliation Summary</div>
+      <div class="ledger-tape">
+        <div class="ledger-item">
+          <div class="l">Statement Total</div>
+          <div class="v" id="ledgerStmtTotal">$0.00</div>
+        </div>
+        <div class="ledger-item">
+          <div class="l">Ledger Total</div>
+          <div class="v" id="ledgerBcTotal">$0.00</div>
+        </div>
+        <div class="ledger-item">
+          <div class="l">Variance</div>
+          <div class="v" id="ledgerDiff">$0.00</div>
+          <div class="ledger-status" id="ledgerStatus"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="count-cards" id="summaryCards"></div>
+
+    <div class="panel">
+      <div class="panel-body" style="padding-top:16px;">
         <div class="results-tabs">
           <button class="tab-btn active" data-tab="matched">Matched</button>
-          <button class="tab-btn" data-tab="unmatchedStatement">On statement, not in BC</button>
-          <button class="tab-btn" data-tab="unmatchedBC">In BC, not on statement</button>
+          <button class="tab-btn" data-tab="unmatchedStatement">On statement, not in ledger</button>
+          <button class="tab-btn" data-tab="unmatchedBC">In ledger, not on statement</button>
         </div>
 
         <div class="tab-panel active" id="panel-matched">
           <div class="toolbar"><span class="mini" id="matchedCount"></span><button class="ghost" id="exportMatched">Export CSV</button></div>
           <div class="table-wrap"><table>
-            <thead><tr><th>Statement date</th><th>Statement description</th><th class="num">Statement amt</th><th>BC date</th><th>BC description</th><th>BC reference</th><th class="num">BC amt</th></tr></thead>
+            <thead><tr><th>Statement date</th><th>Statement description</th><th class="num">Statement amt</th><th>Ledger date</th><th>Ledger description</th><th>Reference</th><th class="num">Ledger amt</th></tr></thead>
             <tbody id="matchedBody"></tbody>
           </table></div>
         </div>
 
         <div class="tab-panel" id="panel-unmatchedStatement">
           <div class="toolbar"><span class="mini" id="unmatchedStatementCount"></span><button class="ghost" id="exportUnmatchedStatement">Export CSV</button></div>
-          <div class="mini" style="margin-bottom:6px;">Charged on the card but not yet found in your BC posting — likely still needs to be posted.</div>
+          <div class="mini" style="margin-bottom:6px;">Charged on the card but not yet found in the ledger — likely still needs to be posted.</div>
           <div class="table-wrap"><table>
             <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
             <tbody id="unmatchedStatementBody"></tbody>
@@ -417,7 +637,7 @@
 
         <div class="tab-panel" id="panel-unmatchedBC">
           <div class="toolbar"><span class="mini" id="unmatchedBCCount"></span><button class="ghost" id="exportUnmatchedBC">Export CSV</button></div>
-          <div class="mini" style="margin-bottom:6px;">Posted in BC but not found on this statement — check card, date range, or possible duplicate posting.</div>
+          <div class="mini" style="margin-bottom:6px;">Posted in the ledger but not found on this statement — check card, date range, or a possible duplicate posting.</div>
           <div class="table-wrap"><table>
             <thead><tr><th>Date</th><th>Description</th><th>Reference</th><th class="num">Amount</th></tr></thead>
             <tbody id="unmatchedBCBody"></tbody>
@@ -429,14 +649,14 @@
 
 </main>
 
-<footer>Runs entirely in your browser — no files are uploaded anywhere.</footer>
+<footer>MARINETEKNIK · FINANCE — RUNS CLIENT-SIDE, NO UPLOAD</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 
-let pdfRows = [];   // {date, desc, amount}
-let bcRows = [];    // {date, desc, ref, amount}
-let bcWorkbookRows = []; // raw parsed rows from sheet
+let pdfRows = [];
+let bcRows = [];
+let bcWorkbookRows = [];
 let bcHeaders = [];
 
 // ---------- helpers ----------
@@ -456,7 +676,6 @@ function parseAmount(str){
 function parseDateFlexible(str){
   if(str === null || str === undefined || str === '') return null;
   if(str instanceof Date) return str;
-  // excel serial date number
   if(typeof str === 'number'){
     const d = XLSX.SSF.parse_date_code(str);
     if(d) return new Date(d.y, d.m-1, d.d);
@@ -507,11 +726,41 @@ function downloadCsv(filename, rows){
   a.click();
 }
 
-// ---------- STEP 1: PDF extraction ----------
-document.getElementById('pdfFile').addEventListener('change', e=>{
-  document.getElementById('parsePdfBtn').disabled = !e.target.files.length;
+// ---------- Dropzone wiring ----------
+function wireDropzone(zoneId, inputId, labelId, onFile){
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  const label = document.getElementById(labelId);
+  zone.addEventListener('click', ()=> input.click());
+  input.addEventListener('change', ()=>{
+    if(input.files.length){
+      label.textContent = '✓ ' + input.files[0].name;
+      onFile(input.files[0]);
+    }
+  });
+  ['dragenter','dragover'].forEach(evt=>{
+    zone.addEventListener(evt, e=>{ e.preventDefault(); zone.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(evt=>{
+    zone.addEventListener(evt, e=>{ e.preventDefault(); zone.classList.remove('dragover'); });
+  });
+  zone.addEventListener('drop', e=>{
+    if(e.dataTransfer.files.length){
+      input.files = e.dataTransfer.files;
+      label.textContent = '✓ ' + input.files[0].name;
+      onFile(input.files[0]);
+    }
+  });
+}
+
+wireDropzone('pdfDropzone','pdfFile','pdfFileLabel', ()=>{
+  document.getElementById('parsePdfBtn').disabled = false;
+});
+wireDropzone('xlsxDropzone','xlsxFile','xlsxFileLabel', (file)=>{
+  handleXlsxFile(file);
 });
 
+// ---------- STEP 1: PDF extraction ----------
 document.getElementById('parsePdfBtn').addEventListener('click', async ()=>{
   const file = document.getElementById('pdfFile').files[0];
   const statusEl = document.getElementById('pdfStatus');
@@ -528,7 +777,6 @@ document.getElementById('parsePdfBtn').addEventListener('click', async ()=>{
     for(let p=1; p<=pdf.numPages; p++){
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
-      // group items by approximate y position into lines
       const byY = {};
       content.items.forEach(item=>{
         const y = Math.round(item.transform[5]);
@@ -555,11 +803,7 @@ document.getElementById('parsePdfBtn').addEventListener('click', async ()=>{
       if(!dm || !am) return;
       const amount = parseAmount(am[1]);
       if(isNaN(amount) || amount === 0) return;
-      let desc = line
-        .replace(dm[0], '')
-        .slice(0, line.indexOf(am[1]) >= 0 ? undefined : undefined);
-      // remove the amount substring from desc too
-      desc = line.replace(dm[0],'').replace(am[1],'').replace(/\s{2,}/g,' ').trim();
+      let desc = line.replace(dm[0],'').replace(am[1],'').replace(/\s{2,}/g,' ').trim();
       const d = parseDateFlexible(dm[1]);
       if(!d) return;
       extracted.push({date: d, desc: desc || '(description)', amount: amount});
@@ -568,7 +812,7 @@ document.getElementById('parsePdfBtn').addEventListener('click', async ()=>{
     pdfRows = extracted;
     renderPdfTable();
     statusEl.className = 'status-line ok';
-    statusEl.textContent = `Extracted ${extracted.length} transaction line(s) from ${pdf.numPages} page(s). Review the table below — delete anything that isn't a real transaction.`;
+    statusEl.textContent = `Extracted ${extracted.length} transaction line(s) from ${pdf.numPages} page(s). Review before matching.`;
     document.getElementById('pdfPreviewWrap').style.display = 'block';
   }catch(err){
     statusEl.className = 'status-line err';
@@ -627,23 +871,22 @@ document.getElementById('pdfClearAll').addEventListener('click', ()=>{
 // ---------- STEP 2: Excel ----------
 let currentWorkbook = null;
 
-document.getElementById('xlsxFile').addEventListener('change', async (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
+function handleXlsxFile(file){
   const statusEl = document.getElementById('xlsxStatus');
   statusEl.textContent = '';
-  const buf = await file.arrayBuffer();
-  currentWorkbook = XLSX.read(buf, {type:'array', cellDates:true});
-  const sheetSelect = document.getElementById('sheetSelect');
-  sheetSelect.innerHTML = '';
-  currentWorkbook.SheetNames.forEach(name=>{
-    const opt = document.createElement('option');
-    opt.value = name; opt.textContent = name;
-    sheetSelect.appendChild(opt);
+  file.arrayBuffer().then(buf=>{
+    currentWorkbook = XLSX.read(buf, {type:'array', cellDates:true});
+    const sheetSelect = document.getElementById('sheetSelect');
+    sheetSelect.innerHTML = '';
+    currentWorkbook.SheetNames.forEach(name=>{
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      sheetSelect.appendChild(opt);
+    });
+    sheetSelect.disabled = false;
+    loadSheet(currentWorkbook.SheetNames[0]);
   });
-  sheetSelect.disabled = false;
-  loadSheet(currentWorkbook.SheetNames[0]);
-});
+}
 
 document.getElementById('sheetSelect').addEventListener('change', e=>{
   loadSheet(e.target.value);
@@ -671,7 +914,7 @@ function loadSheet(sheetName){
   guessColumn('mapRef', ['bc posting no','posting no','document no','reference','ref']);
 
   document.getElementById('mapWrap').style.display = 'block';
-  document.getElementById('xlsxStatus').textContent = `${json.length} row(s) found in sheet "${sheetName}". Confirm column mapping, then click Load transactions.`;
+  document.getElementById('xlsxStatus').textContent = `${json.length} row(s) found in sheet "${sheetName}". Confirm column mapping, then load.`;
 }
 
 function guessColumn(selectId, keywords){
@@ -705,8 +948,7 @@ document.getElementById('applyMapBtn').addEventListener('click', ()=>{
     const a = parseAmount(r[amtCol]);
     if(!d || isNaN(a)){ skipped++; return; }
     bcRows.push({
-      date: d,
-      amount: a,
+      date: d, amount: a,
       desc: descCol ? String(r[descCol]||'') : '',
       ref: refCol ? String(r[refCol]||'') : ''
     });
@@ -742,7 +984,6 @@ function renderBcTable(){
     });
   });
 
-  // duplicate detection: same amount + same date appearing more than once
   const seen = {};
   bcRows.forEach(r=>{
     const key = fmtDate(r.date)+'|'+r.amount.toFixed(2);
@@ -752,14 +993,14 @@ function renderBcTable(){
   const dupEl = document.getElementById('dupWarning');
   if(dupCount){
     dupEl.className = 'status-line err';
-    dupEl.textContent = `⚠ ${dupCount} date/amount combination(s) appear more than once in this BC file — possible duplicate postings. They'll still be matched, but worth a manual check.`;
+    dupEl.textContent = `⚠ ${dupCount} date/amount combination(s) appear more than once in this ledger — possible duplicate postings.`;
   } else {
     dupEl.textContent = '';
   }
 }
 
 document.getElementById('xlsxClearAll').addEventListener('click', ()=>{
-  if(confirm('Clear all loaded BC rows?')){ bcRows = []; renderBcTable(); }
+  if(confirm('Clear all loaded ledger rows?')){ bcRows = []; renderBcTable(); }
 });
 
 // ---------- STEP 3: Matching ----------
@@ -767,12 +1008,12 @@ document.getElementById('runMatchBtn').addEventListener('click', ()=>{
   const statusEl = document.getElementById('matchStatus');
   if(!pdfRows.length && !bcRows.length){
     statusEl.className = 'status-line err';
-    statusEl.textContent = 'Load at least one statement transaction and one BC transaction first.';
+    statusEl.textContent = 'Load at least one statement transaction and one ledger transaction first.';
     return;
   }
 
-  const dateTol = parseInt(document.getElementById('dateTolerance').value,10) || 0;
-  const amtTol = parseFloat(document.getElementById('amtTolerance').value) || 0;
+  const dateTol = 0;        // exact date match only
+  const amtTol = 0.01;      // allow a penny of rounding, not a real tolerance
 
   const bcPool = bcRows.map((r,i)=>({...r, _i:i}));
   const matched = [];
@@ -801,7 +1042,7 @@ document.getElementById('runMatchBtn').addEventListener('click', ()=>{
 
   renderResults(matched, unmatchedStatement, unmatchedBC);
   statusEl.className = 'status-line ok';
-  statusEl.textContent = `Done — ${matched.length} matched, ${unmatchedStatement.length} statement-only, ${unmatchedBC.length} BC-only.`;
+  statusEl.textContent = `Done — ${matched.length} matched, ${unmatchedStatement.length} statement-only, ${unmatchedBC.length} ledger-only.`;
   document.getElementById('resultsWrap').style.display = 'block';
   document.getElementById('resultsWrap').scrollIntoView({behavior:'smooth', block:'start'});
 });
@@ -810,14 +1051,22 @@ function renderResults(matched, unmatchedStatement, unmatchedBC){
   const stmtTotal = pdfRows.reduce((s,r)=>s+r.amount,0);
   const bcTotal = bcRows.reduce((s,r)=>s+r.amount,0);
   const diff = stmtTotal - bcTotal;
+  const balanced = Math.abs(diff) <= 0.01;
+
+  document.getElementById('ledgerStmtTotal').textContent = '$' + fmtAmt(stmtTotal);
+  document.getElementById('ledgerBcTotal').textContent = '$' + fmtAmt(bcTotal);
+  const diffEl = document.getElementById('ledgerDiff');
+  diffEl.textContent = (diff<0?'-':'') + '$' + fmtAmt(Math.abs(diff));
+  diffEl.className = 'v ' + (balanced ? 'diff-ok' : 'diff-bad');
+
+  const statusEl = document.getElementById('ledgerStatus');
+  statusEl.className = 'ledger-status ' + (balanced ? 'ok' : 'bad');
+  statusEl.innerHTML = `<span class="dot"></span>${balanced ? 'Balanced' : 'Out of balance'}`;
 
   document.getElementById('summaryCards').innerHTML = `
-    <div class="card matched"><div class="n">${matched.length}</div><div class="l">Matched</div></div>
-    <div class="card red"><div class="n">${unmatchedStatement.length}</div><div class="l">On statement, not in BC</div></div>
-    <div class="card amber"><div class="n">${unmatchedBC.length}</div><div class="l">In BC, not on statement</div></div>
-    <div class="card"><div class="n">$${fmtAmt(stmtTotal)}</div><div class="l">Statement total</div></div>
-    <div class="card"><div class="n">$${fmtAmt(bcTotal)}</div><div class="l">BC total</div></div>
-    <div class="card"><div class="n ${Math.abs(diff)>0.01?'diff-flag':''}">$${fmtAmt(diff)}</div><div class="l">Difference</div></div>
+    <div class="count-card matched"><div class="n">${matched.length}</div><div class="l">Matched</div></div>
+    <div class="count-card rose"><div class="n">${unmatchedStatement.length}</div><div class="l">On statement, not in ledger</div></div>
+    <div class="count-card amber"><div class="n">${unmatchedBC.length}</div><div class="l">In ledger, not on statement</div></div>
   `;
 
   document.getElementById('matchedCount').textContent = `${matched.length} matched pair(s)`;
@@ -841,12 +1090,11 @@ function renderResults(matched, unmatchedStatement, unmatchedBC){
   document.getElementById('unmatchedBCCount').textContent = `${unmatchedBC.length} row(s)`;
   document.getElementById('unmatchedBCBody').innerHTML = unmatchedBC.map(r => `
     <tr><td>${fmtDate(r.date)}</td><td>${r.desc}</td><td>${r.ref}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
-  `).join('') || `<tr><td colspan="4" class="empty-state">Every BC posting was matched to the statement.</td></tr>`;
+  `).join('') || `<tr><td colspan="4" class="empty-state">Every ledger posting was matched to the statement.</td></tr>`;
 
   window._reconData = {matched, unmatchedStatement, unmatchedBC};
 }
 
-// tabs
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -856,10 +1104,9 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
   });
 });
 
-// exports
 document.getElementById('exportMatched').addEventListener('click', ()=>{
   const d = window._reconData; if(!d) return;
-  const rows = [['Statement Date','Statement Description','Statement Amount','BC Date','BC Description','BC Reference','BC Amount']];
+  const rows = [['Statement Date','Statement Description','Statement Amount','Ledger Date','Ledger Description','Reference','Ledger Amount']];
   d.matched.forEach(m=>rows.push([fmtDate(m.statement.date), m.statement.desc, m.statement.amount.toFixed(2), fmtDate(m.bc.date), m.bc.desc, m.bc.ref, m.bc.amount.toFixed(2)]));
   downloadCsv('reconciliation_matched.csv', rows);
 });
