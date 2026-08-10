@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TravelBank ↔ Business Central Reconciliation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#0f1720;
+    --ink-soft:#4a5568;
+    --paper:#f6f7f9;
+    --panel:#ffffff;
+    --line:#dfe3e8;
+    --accent:#1f5c4a;
+    --accent-soft:#e4efe9;
+    --amber:#8a5a12;
+    --amber-soft:#fbeed7;
+    --red:#8a2f2f;
+    --red-soft:#faeaea;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --sans: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.45;
+  }
+  header{
+    background:var(--ink);
+    color:#fff;
+    padding:22px 28px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  header h1{
+    font-size:18px;
+    margin:0;
+    font-weight:600;
+    letter-spacing:0.2px;
+  }
+  header .tag{
+    font-family:var(--mono);
+    font-size:12px;
+    color:#9fb4ac;
+  }
+  main{
+    max-width:1180px;
+    margin:0 auto;
+    padding:24px 20px 80px;
+  }
+  .step{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    margin-bottom:18px;
+    overflow:hidden;
+  }
+  .step-head{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+    background:#fbfbfc;
+  }
+  .step-num{
+    width:22px;height:22px;border-radius:50%;
+    background:var(--ink);color:#fff;
+    font-size:12px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .step-head h2{
+    font-size:14px;margin:0;font-weight:600;
+  }
+  .step-head .hint{
+    margin-left:auto;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .step-body{
+    padding:18px;
+  }
+  .step-body.collapsed{display:none;}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:12px;color:var(--ink-soft);font-weight:600;}
+  input[type=file]{
+    font-size:13px;
+  }
+  select, input[type=number], input[type=text]{
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:7px 9px;
+    font-size:13px;
+    font-family:var(--sans);
+    background:#fff;
+    color:var(--ink);
+    min-width:170px;
+  }
+  button{
+    border:none;
+    border-radius:4px;
+    padding:9px 16px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    background:var(--accent);
+    color:#fff;
+  }
+  button:hover{opacity:0.92;}
+  button.secondary{
+    background:#fff;
+    color:var(--ink);
+    border:1px solid var(--line);
+  }
+  button.ghost{
+    background:transparent;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    padding:5px 10px;
+    font-size:12px;
+    font-weight:500;
+  }
+  button:disabled{opacity:0.45;cursor:not-allowed;}
+  .status-line{
+    margin-top:10px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-soft);
+    white-space:pre-wrap;
+  }
+  .status-line.err{color:var(--red);}
+  .status-line.ok{color:var(--accent);}
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12.5px;
+  }
+  th{
+    text-align:left;
+    background:#f1f2f4;
+    padding:7px 9px;
+    border-bottom:1px solid var(--line);
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+    color:var(--ink-soft);
+    position:sticky;
+    top:0;
+  }
+  td{
+    padding:6px 9px;
+    border-bottom:1px solid #eef0f2;
+    vertical-align:top;
+  }
+  td[contenteditable=true]{outline:none;}
+  td[contenteditable=true]:focus{background:#fffbe6;}
+  .num{text-align:right;font-family:var(--mono);white-space:nowrap;}
+  .table-wrap{
+    max-height:340px;
+    overflow:auto;
+    border:1px solid var(--line);
+    border-radius:4px;
+  }
+  .table-wrap table{margin:0;}
+  .row-del{
+    color:var(--red);
+    cursor:pointer;
+    font-size:12px;
+    text-align:center;
+  }
+  .mini{font-size:11.5px;color:var(--ink-soft);}
+  .summary-cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .card{
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:#fff;
+    padding:12px 14px;
+  }
+  .card .n{font-family:var(--mono);font-size:22px;font-weight:700;}
+  .card .l{font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px;}
+  .card.matched{border-color:var(--accent);background:var(--accent-soft);}
+  .card.amber{border-color:var(--amber);background:var(--amber-soft);}
+  .card.red{border-color:var(--red);background:var(--red-soft);}
+  .results-tabs{
+    display:flex;
+    gap:2px;
+    margin-bottom:0;
+    border-bottom:1px solid var(--line);
+  }
+  .tab-btn{
+    background:transparent;
+    color:var(--ink-soft);
+    border:none;
+    border-bottom:2px solid transparent;
+    border-radius:0;
+    padding:9px 14px;
+    font-weight:600;
+  }
+  .tab-btn.active{
+    color:var(--ink);
+    border-bottom:2px solid var(--ink);
+  }
+  .tab-panel{display:none;padding-top:12px;}
+  .tab-panel.active{display:block;}
+  .badge{
+    display:inline-block;
+    padding:2px 7px;
+    border-radius:3px;
+    font-size:11px;
+    font-weight:700;
+    font-family:var(--mono);
+  }
+  .badge.matched{background:var(--accent-soft);color:var(--accent);}
+  .badge.amber{background:var(--amber-soft);color:var(--amber);}
+  .badge.red{background:var(--red-soft);color:var(--red);}
+  .toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:8px;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .empty-state{
+    padding:30px 10px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13px;
+  }
+  footer{
+    text-align:center;
+    font-size:11.5px;
+    color:#9aa1a9;
+    padding:20px;
+  }
+  .diff-flag{color:var(--red);font-weight:700;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TravelBank ↔ Business Central Reconciliation</h1>
+  <span class="tag">City National · CC_CITY_NATIONAL</span>
+</header>
+
+<main>
+
+  <!-- STEP 1: TravelBank PDF -->
+  <div class="step">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      <h2>TravelBank statement (PDF)</h2>
+      <span class="hint">Extracts transaction lines automatically — review and fix before matching</span>
+    </div>
+    <div class="step-body">
+      <div class="row">
+        <div class="field">
+          <label>PDF statement file</label>
+          <input type="file" id="pdfFile" accept="application/pdf">
+        </div>
+        <div class="field">
+          <label>Skip lines containing (comma separated)</label>
+          <input type="text" id="pdfSkipWords" value="Total,Subtotal,Page,Balance,Statement,Continued" style="min-width:320px;">
+        </div>
+        <button id="parsePdfBtn" disabled>Extract transactions</button>
+      </div>
+      <div class="status-line" id="pdfStatus">Choose the TravelBank PDF statement, then click Extract.</div>
+
+      <div id="pdfPreviewWrap" style="display:none;margin-top:14px;">
+        <div class="toolbar">
+          <span class="mini" id="pdfCount">0 rows extracted</span>
+          <div style="display:flex;gap:6px;">
+            <button class="ghost" id="pdfAddRow">+ Add row</button>
+            <button class="ghost" id="pdfClearAll">Clear all</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th style="width:100px;">Date</th><th>Description</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr>
+            </thead>
+            <tbody id="pdfTableBody"></tbody>
+          </table>
+        </div>
+        <div class="mini" style="margin-top:6px;">Click any cell to edit. Delete rows that are headers, subtotals, or noise. Amounts should be numeric (e.g. 128.45).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: BC Excel -->
+  <div class="step">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <h2>Business Central export (Excel)</h2>
+      <span class="hint">Your posted transactions — Posted Log or BC Posting Journal export</span>
+    </div>
+    <div class="step-body">
+      <div class="row">
+        <div class="field">
+          <label>Excel file (.xlsx / .csv)</label>
+          <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv">
+        </div>
+        <div class="field">
+          <label>Sheet</label>
+          <select id="sheetSelect" disabled><option>—</option></select>
+        </div>
+      </div>
+
+      <div id="mapWrap" style="display:none;margin-top:14px;">
+        <div class="row">
+          <div class="field">
+            <label>Date column</label>
+            <select id="mapDate"></select>
+          </div>
+          <div class="field">
+            <label>Amount column</label>
+            <select id="mapAmount"></select>
+          </div>
+          <div class="field">
+            <label>Description / Merchant column</label>
+            <select id="mapDesc"></select>
+          </div>
+          <div class="field">
+            <label>Reference (BC Posting No., optional)</label>
+            <select id="mapRef"></select>
+          </div>
+          <button id="applyMapBtn">Load transactions</button>
+        </div>
+        <div class="status-line" id="xlsxStatus"></div>
+
+        <div id="xlsxPreviewWrap" style="display:none;margin-top:14px;">
+          <div class="toolbar">
+            <span class="mini" id="xlsxCount">0 rows loaded</span>
+            <button class="ghost" id="xlsxClearAll">Clear all</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th style="width:100px;">Date</th><th>Description</th><th style="width:120px;">Reference</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr>
+              </thead>
+              <tbody id="xlsxTableBody"></tbody>
+            </table>
+          </div>
+          <div class="status-line" id="dupWarning"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Match -->
+  <div class="step">
+    <div class="step-head">
+      <div class="step-num">3</div>
+      <h2>Run reconciliation</h2>
+      <span class="hint">Matches by amount and nearby date</span>
+    </div>
+    <div class="step-body">
+      <div class="row">
+        <div class="field">
+          <label>Date tolerance (± days)</label>
+          <input type="number" id="dateTolerance" value="5" min="0" max="30" style="min-width:80px;">
+        </div>
+        <div class="field">
+          <label>Amount tolerance ($)</label>
+          <input type="number" id="amtTolerance" value="0.01" min="0" max="5" step="0.01" style="min-width:80px;">
+        </div>
+        <button id="runMatchBtn">Run reconciliation</button>
+      </div>
+      <div class="status-line" id="matchStatus"></div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="resultsWrap" style="display:none;">
+    <div class="summary-cards" id="summaryCards"></div>
+
+    <div class="step">
+      <div class="step-body" style="padding-top:0;">
+        <div class="results-tabs">
+          <button class="tab-btn active" data-tab="matched">Matched</button>
+          <button class="tab-btn" data-tab="unmatchedStatement">On statement, not in BC</button>
+          <button class="tab-btn" data-tab="unmatchedBC">In BC, not on statement</button>
+        </div>
+
+        <div class="tab-panel active" id="panel-matched">
+          <div class="toolbar"><span class="mini" id="matchedCount"></span><button class="ghost" id="exportMatched">Export CSV</button></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Statement date</th><th>Statement description</th><th class="num">Statement amt</th><th>BC date</th><th>BC description</th><th>BC reference</th><th class="num">BC amt</th></tr></thead>
+            <tbody id="matchedBody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="tab-panel" id="panel-unmatchedStatement">
+          <div class="toolbar"><span class="mini" id="unmatchedStatementCount"></span><button class="ghost" id="exportUnmatchedStatement">Export CSV</button></div>
+          <div class="mini" style="margin-bottom:6px;">Charged on the card but not yet found in your BC posting — likely still needs to be posted.</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
+            <tbody id="unmatchedStatementBody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="tab-panel" id="panel-unmatchedBC">
+          <div class="toolbar"><span class="mini" id="unmatchedBCCount"></span><button class="ghost" id="exportUnmatchedBC">Export CSV</button></div>
+          <div class="mini" style="margin-bottom:6px;">Posted in BC but not found on this statement — check card, date range, or possible duplicate posting.</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Date</th><th>Description</th><th>Reference</th><th class="num">Amount</th></tr></thead>
+            <tbody id="unmatchedBCBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Runs entirely in your browser — no files are uploaded anywhere.</footer>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+
+let pdfRows = [];   // {date, desc, amount}
+let bcRows = [];    // {date, desc, ref, amount}
+let bcWorkbookRows = []; // raw parsed rows from sheet
+let bcHeaders = [];
+
+// ---------- helpers ----------
+function parseAmount(str){
+  if(str === null || str === undefined) return NaN;
+  let s = String(str).trim();
+  let neg = false;
+  if(/^\(.*\)$/.test(s)){ neg = true; s = s.slice(1,-1); }
+  if(s.startsWith('-')){ neg = true; s = s.slice(1); }
+  s = s.replace(/[^0-9.]/g,'');
+  if(s === '') return NaN;
+  let n = parseFloat(s);
+  if(isNaN(n)) return NaN;
+  return neg ? -n : n;
+}
+
+function parseDateFlexible(str){
+  if(str === null || str === undefined || str === '') return null;
+  if(str instanceof Date) return str;
+  // excel serial date number
+  if(typeof str === 'number'){
+    const d = XLSX.SSF.parse_date_code(str);
+    if(d) return new Date(d.y, d.m-1, d.d);
+    return null;
+  }
+  let s = String(str).trim();
+  let m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if(m){
+    let mo = parseInt(m[1],10), da = parseInt(m[2],10), yr = parseInt(m[3],10);
+    if(yr < 100) yr += 2000;
+    let d = new Date(yr, mo-1, da);
+    if(!isNaN(d.getTime())) return d;
+  }
+  m = s.match(/([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{2,4})/);
+  if(m){
+    let d = new Date(m[1]+' '+m[2]+', '+m[3]);
+    if(!isNaN(d.getTime())) return d;
+  }
+  let d2 = new Date(s);
+  if(!isNaN(d2.getTime())) return d2;
+  return null;
+}
+
+function fmtDate(d){
+  if(!d) return '';
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${mm}/${dd}/${d.getFullYear()}`;
+}
+
+function fmtAmt(n){
+  if(isNaN(n)) return '';
+  return n.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function csvEscape(v){
+  v = (v===undefined||v===null) ? '' : String(v);
+  if(/[",\n]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
+  return v;
+}
+
+function downloadCsv(filename, rows){
+  const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+// ---------- STEP 1: PDF extraction ----------
+document.getElementById('pdfFile').addEventListener('change', e=>{
+  document.getElementById('parsePdfBtn').disabled = !e.target.files.length;
+});
+
+document.getElementById('parsePdfBtn').addEventListener('click', async ()=>{
+  const file = document.getElementById('pdfFile').files[0];
+  const statusEl = document.getElementById('pdfStatus');
+  if(!file) return;
+  statusEl.className='status-line';
+  statusEl.textContent = 'Reading PDF...';
+  const skipWords = document.getElementById('pdfSkipWords').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    let lines = [];
+
+    for(let p=1; p<=pdf.numPages; p++){
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      // group items by approximate y position into lines
+      const byY = {};
+      content.items.forEach(item=>{
+        const y = Math.round(item.transform[5]);
+        if(!byY[y]) byY[y] = [];
+        byY[y].push(item);
+      });
+      const ys = Object.keys(byY).map(Number).sort((a,b)=>b-a);
+      ys.forEach(y=>{
+        const lineItems = byY[y].sort((a,b)=>a.transform[4]-b.transform[4]);
+        const text = lineItems.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+        if(text) lines.push(text);
+      });
+    }
+
+    const dateRe = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/;
+    const amtRe = /(\(?\-?\$?\d{1,3}(?:,\d{3})*\.\d{2}\)?)(?!.*\d{1,3}(?:,\d{3})*\.\d{2})/;
+
+    let extracted = [];
+    lines.forEach(line=>{
+      const lower = line.toLowerCase();
+      if(skipWords.some(w=> w && lower.includes(w))) return;
+      const dm = line.match(dateRe);
+      const am = line.match(amtRe);
+      if(!dm || !am) return;
+      const amount = parseAmount(am[1]);
+      if(isNaN(amount) || amount === 0) return;
+      let desc = line
+        .replace(dm[0], '')
+        .slice(0, line.indexOf(am[1]) >= 0 ? undefined : undefined);
+      // remove the amount substring from desc too
+      desc = line.replace(dm[0],'').replace(am[1],'').replace(/\s{2,}/g,' ').trim();
+      const d = parseDateFlexible(dm[1]);
+      if(!d) return;
+      extracted.push({date: d, desc: desc || '(description)', amount: amount});
+    });
+
+    pdfRows = extracted;
+    renderPdfTable();
+    statusEl.className = 'status-line ok';
+    statusEl.textContent = `Extracted ${extracted.length} transaction line(s) from ${pdf.numPages} page(s). Review the table below — delete anything that isn't a real transaction.`;
+    document.getElementById('pdfPreviewWrap').style.display = 'block';
+  }catch(err){
+    statusEl.className = 'status-line err';
+    statusEl.textContent = 'Could not read this PDF: ' + err.message + '. You can still add rows manually below.';
+    pdfRows = [];
+    renderPdfTable();
+    document.getElementById('pdfPreviewWrap').style.display = 'block';
+  }
+});
+
+function renderPdfTable(){
+  const body = document.getElementById('pdfTableBody');
+  body.innerHTML = '';
+  pdfRows.forEach((r, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td contenteditable="true" data-field="date" data-idx="${idx}">${fmtDate(r.date)}</td>
+      <td contenteditable="true" data-field="desc" data-idx="${idx}">${r.desc}</td>
+      <td contenteditable="true" data-field="amount" class="num" data-idx="${idx}">${fmtAmt(r.amount)}</td>
+      <td class="row-del" data-idx="${idx}">✕</td>
+    `;
+    body.appendChild(tr);
+  });
+  document.getElementById('pdfCount').textContent = `${pdfRows.length} rows extracted`;
+  bindPdfTableEvents();
+}
+
+function bindPdfTableEvents(){
+  document.querySelectorAll('#pdfTableBody [contenteditable]').forEach(cell=>{
+    cell.addEventListener('blur', e=>{
+      const idx = +e.target.dataset.idx;
+      const field = e.target.dataset.field;
+      const val = e.target.textContent.trim();
+      if(field === 'date') pdfRows[idx].date = parseDateFlexible(val) || pdfRows[idx].date;
+      if(field === 'desc') pdfRows[idx].desc = val;
+      if(field === 'amount') pdfRows[idx].amount = parseAmount(val);
+    });
+  });
+  document.querySelectorAll('#pdfTableBody .row-del').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const idx = +e.target.dataset.idx;
+      pdfRows.splice(idx,1);
+      renderPdfTable();
+    });
+  });
+}
+
+document.getElementById('pdfAddRow').addEventListener('click', ()=>{
+  pdfRows.push({date: new Date(), desc:'', amount:0});
+  renderPdfTable();
+});
+document.getElementById('pdfClearAll').addEventListener('click', ()=>{
+  if(confirm('Clear all extracted statement rows?')){ pdfRows = []; renderPdfTable(); }
+});
+
+// ---------- STEP 2: Excel ----------
+let currentWorkbook = null;
+
+document.getElementById('xlsxFile').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('xlsxStatus');
+  statusEl.textContent = '';
+  const buf = await file.arrayBuffer();
+  currentWorkbook = XLSX.read(buf, {type:'array', cellDates:true});
+  const sheetSelect = document.getElementById('sheetSelect');
+  sheetSelect.innerHTML = '';
+  currentWorkbook.SheetNames.forEach(name=>{
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sheetSelect.appendChild(opt);
+  });
+  sheetSelect.disabled = false;
+  loadSheet(currentWorkbook.SheetNames[0]);
+});
+
+document.getElementById('sheetSelect').addEventListener('change', e=>{
+  loadSheet(e.target.value);
+});
+
+function loadSheet(sheetName){
+  const ws = currentWorkbook.Sheets[sheetName];
+  const json = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false, dateNF:'mm/dd/yyyy'});
+  bcWorkbookRows = json;
+  bcHeaders = json.length ? Object.keys(json[0]) : [];
+
+  ['mapDate','mapAmount','mapDesc','mapRef'].forEach(id=>{
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">— none —</option>';
+    bcHeaders.forEach(h=>{
+      const opt = document.createElement('option');
+      opt.value = h; opt.textContent = h;
+      sel.appendChild(opt);
+    });
+  });
+
+  guessColumn('mapDate', ['posted date','posting date','date']);
+  guessColumn('mapAmount', ['amount','amt']);
+  guessColumn('mapDesc', ['merchant','description','vendor','employee']);
+  guessColumn('mapRef', ['bc posting no','posting no','document no','reference','ref']);
+
+  document.getElementById('mapWrap').style.display = 'block';
+  document.getElementById('xlsxStatus').textContent = `${json.length} row(s) found in sheet "${sheetName}". Confirm column mapping, then click Load transactions.`;
+}
+
+function guessColumn(selectId, keywords){
+  const sel = document.getElementById(selectId);
+  for(const h of bcHeaders){
+    const low = h.toLowerCase();
+    if(keywords.some(k => low.includes(k))){
+      sel.value = h;
+      return;
+    }
+  }
+}
+
+document.getElementById('applyMapBtn').addEventListener('click', ()=>{
+  const dateCol = document.getElementById('mapDate').value;
+  const amtCol = document.getElementById('mapAmount').value;
+  const descCol = document.getElementById('mapDesc').value;
+  const refCol = document.getElementById('mapRef').value;
+  const statusEl = document.getElementById('xlsxStatus');
+
+  if(!dateCol || !amtCol){
+    statusEl.className = 'status-line err';
+    statusEl.textContent = 'Please select at least a Date column and an Amount column.';
+    return;
+  }
+
+  bcRows = [];
+  let skipped = 0;
+  bcWorkbookRows.forEach(r=>{
+    const d = parseDateFlexible(r[dateCol]);
+    const a = parseAmount(r[amtCol]);
+    if(!d || isNaN(a)){ skipped++; return; }
+    bcRows.push({
+      date: d,
+      amount: a,
+      desc: descCol ? String(r[descCol]||'') : '',
+      ref: refCol ? String(r[refCol]||'') : ''
+    });
+  });
+
+  renderBcTable();
+  statusEl.className = 'status-line ok';
+  statusEl.textContent = `Loaded ${bcRows.length} row(s)${skipped ? ` (${skipped} skipped — missing date or amount)` : ''}.`;
+  document.getElementById('xlsxPreviewWrap').style.display = 'block';
+});
+
+function renderBcTable(){
+  const body = document.getElementById('xlsxTableBody');
+  body.innerHTML = '';
+  bcRows.forEach((r, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${fmtDate(r.date)}</td>
+      <td>${r.desc}</td>
+      <td>${r.ref}</td>
+      <td class="num">${fmtAmt(r.amount)}</td>
+      <td class="row-del" data-idx="${idx}">✕</td>
+    `;
+    body.appendChild(tr);
+  });
+  document.getElementById('xlsxCount').textContent = `${bcRows.length} rows loaded`;
+
+  document.querySelectorAll('#xlsxTableBody .row-del').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const idx = +e.target.dataset.idx;
+      bcRows.splice(idx,1);
+      renderBcTable();
+    });
+  });
+
+  // duplicate detection: same amount + same date appearing more than once
+  const seen = {};
+  bcRows.forEach(r=>{
+    const key = fmtDate(r.date)+'|'+r.amount.toFixed(2);
+    seen[key] = (seen[key]||0)+1;
+  });
+  const dupCount = Object.values(seen).filter(c=>c>1).length;
+  const dupEl = document.getElementById('dupWarning');
+  if(dupCount){
+    dupEl.className = 'status-line err';
+    dupEl.textContent = `⚠ ${dupCount} date/amount combination(s) appear more than once in this BC file — possible duplicate postings. They'll still be matched, but worth a manual check.`;
+  } else {
+    dupEl.textContent = '';
+  }
+}
+
+document.getElementById('xlsxClearAll').addEventListener('click', ()=>{
+  if(confirm('Clear all loaded BC rows?')){ bcRows = []; renderBcTable(); }
+});
+
+// ---------- STEP 3: Matching ----------
+document.getElementById('runMatchBtn').addEventListener('click', ()=>{
+  const statusEl = document.getElementById('matchStatus');
+  if(!pdfRows.length && !bcRows.length){
+    statusEl.className = 'status-line err';
+    statusEl.textContent = 'Load at least one statement transaction and one BC transaction first.';
+    return;
+  }
+
+  const dateTol = parseInt(document.getElementById('dateTolerance').value,10) || 0;
+  const amtTol = parseFloat(document.getElementById('amtTolerance').value) || 0;
+
+  const bcPool = bcRows.map((r,i)=>({...r, _i:i}));
+  const matched = [];
+  const unmatchedStatement = [];
+
+  pdfRows.forEach(sRow=>{
+    let best = null, bestScore = Infinity;
+    bcPool.forEach(bRow=>{
+      if(bRow._used) return;
+      const amtDiff = Math.abs(sRow.amount - bRow.amount);
+      if(amtDiff > amtTol) return;
+      const dayDiff = Math.abs((sRow.date - bRow.date) / 86400000);
+      if(dayDiff > dateTol) return;
+      const score = dayDiff * 10 + amtDiff;
+      if(score < bestScore){ bestScore = score; best = bRow; }
+    });
+    if(best){
+      best._used = true;
+      matched.push({statement: sRow, bc: best});
+    } else {
+      unmatchedStatement.push(sRow);
+    }
+  });
+
+  const unmatchedBC = bcPool.filter(r=>!r._used);
+
+  renderResults(matched, unmatchedStatement, unmatchedBC);
+  statusEl.className = 'status-line ok';
+  statusEl.textContent = `Done — ${matched.length} matched, ${unmatchedStatement.length} statement-only, ${unmatchedBC.length} BC-only.`;
+  document.getElementById('resultsWrap').style.display = 'block';
+  document.getElementById('resultsWrap').scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+function renderResults(matched, unmatchedStatement, unmatchedBC){
+  const stmtTotal = pdfRows.reduce((s,r)=>s+r.amount,0);
+  const bcTotal = bcRows.reduce((s,r)=>s+r.amount,0);
+  const diff = stmtTotal - bcTotal;
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="card matched"><div class="n">${matched.length}</div><div class="l">Matched</div></div>
+    <div class="card red"><div class="n">${unmatchedStatement.length}</div><div class="l">On statement, not in BC</div></div>
+    <div class="card amber"><div class="n">${unmatchedBC.length}</div><div class="l">In BC, not on statement</div></div>
+    <div class="card"><div class="n">$${fmtAmt(stmtTotal)}</div><div class="l">Statement total</div></div>
+    <div class="card"><div class="n">$${fmtAmt(bcTotal)}</div><div class="l">BC total</div></div>
+    <div class="card"><div class="n ${Math.abs(diff)>0.01?'diff-flag':''}">$${fmtAmt(diff)}</div><div class="l">Difference</div></div>
+  `;
+
+  document.getElementById('matchedCount').textContent = `${matched.length} matched pair(s)`;
+  document.getElementById('matchedBody').innerHTML = matched.map(m => `
+    <tr>
+      <td>${fmtDate(m.statement.date)}</td>
+      <td>${m.statement.desc}</td>
+      <td class="num">${fmtAmt(m.statement.amount)}</td>
+      <td>${fmtDate(m.bc.date)}</td>
+      <td>${m.bc.desc}</td>
+      <td>${m.bc.ref}</td>
+      <td class="num">${fmtAmt(m.bc.amount)}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="7" class="empty-state">No matches found.</td></tr>`;
+
+  document.getElementById('unmatchedStatementCount').textContent = `${unmatchedStatement.length} row(s)`;
+  document.getElementById('unmatchedStatementBody').innerHTML = unmatchedStatement.map(r => `
+    <tr><td>${fmtDate(r.date)}</td><td>${r.desc}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
+  `).join('') || `<tr><td colspan="3" class="empty-state">Everything on the statement was matched.</td></tr>`;
+
+  document.getElementById('unmatchedBCCount').textContent = `${unmatchedBC.length} row(s)`;
+  document.getElementById('unmatchedBCBody').innerHTML = unmatchedBC.map(r => `
+    <tr><td>${fmtDate(r.date)}</td><td>${r.desc}</td><td>${r.ref}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
+  `).join('') || `<tr><td colspan="4" class="empty-state">Every BC posting was matched to the statement.</td></tr>`;
+
+  window._reconData = {matched, unmatchedStatement, unmatchedBC};
+}
+
+// tabs
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// exports
+document.getElementById('exportMatched').addEventListener('click', ()=>{
+  const d = window._reconData; if(!d) return;
+  const rows = [['Statement Date','Statement Description','Statement Amount','BC Date','BC Description','BC Reference','BC Amount']];
+  d.matched.forEach(m=>rows.push([fmtDate(m.statement.date), m.statement.desc, m.statement.amount.toFixed(2), fmtDate(m.bc.date), m.bc.desc, m.bc.ref, m.bc.amount.toFixed(2)]));
+  downloadCsv('reconciliation_matched.csv', rows);
+});
+document.getElementById('exportUnmatchedStatement').addEventListener('click', ()=>{
+  const d = window._reconData; if(!d) return;
+  const rows = [['Date','Description','Amount']];
+  d.unmatchedStatement.forEach(r=>rows.push([fmtDate(r.date), r.desc, r.amount.toFixed(2)]));
+  downloadCsv('reconciliation_statement_only.csv', rows);
+});
+document.getElementById('exportUnmatchedBC').addEventListener('click', ()=>{
+  const d = window._reconData; if(!d) return;
+  const rows = [['Date','Description','Reference','Amount']];
+  d.unmatchedBC.forEach(r=>rows.push([fmtDate(r.date), r.desc, r.ref, r.amount.toFixed(2)]));
+  downloadCsv('reconciliation_bc_only.csv', rows);
+});
+</script>
+</body>
+</html>
