@@ -3,24 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reconciliation — TravelBank / Business Central</title>
+<title>Credit Card Reconciliation Tool</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --navy:#0b2540;
-    --navy-2:#132d4b;
-    --gold:#b6912c;
-    --gold-soft:#f4ecd8;
+    --navy:#2c4a70;
+    --navy-dark:#22395a;
     --paper:#eef1f5;
     --panel:#ffffff;
     --line:#d9dee6;
     --line-soft:#e8ebef;
-    --ink:#0f1f30;
+    --ink:#1c2a38;
     --ink-soft:#5b6b7c;
     --ink-faint:#8b98a6;
+    --blue-link:#2a5ba8;
     --emerald:#0e6b5c;
     --emerald-soft:#e3f2ee;
     --emerald-line:#bfe0d6;
@@ -30,7 +29,6 @@
     --rose:#a3242c;
     --rose-soft:#fbe9ea;
     --rose-line:#f0c3c6;
-    --serif:'Newsreader', Georgia, serif;
     --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
   }
@@ -44,190 +42,138 @@
     line-height:1.5;
     -webkit-font-smoothing:antialiased;
   }
+  main{max-width:1180px;margin:0 auto;padding:24px 24px 90px;}
 
-  /* ---------- Masthead ---------- */
-  .masthead{
-    background:linear-gradient(180deg, var(--navy) 0%, var(--navy-2) 100%);
-    color:#eef3f7;
-    padding:28px 36px 22px;
+  .banner{
+    background:linear-gradient(180deg, var(--navy) 0%, var(--navy-dark) 100%);
+    color:#fff;
+    border-radius:10px;
+    padding:22px 28px;
+    margin-bottom:20px;
   }
-  .masthead-inner{
-    max-width:1160px;
-    margin:0 auto;
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-end;
-    flex-wrap:wrap;
-    gap:10px;
+  .banner h1{
+    font-size:22px;
+    font-weight:700;
+    margin:0 0 6px;
+    letter-spacing:0.1px;
   }
-  .wordmark-eyebrow{
-    font-family:var(--mono);
-    font-size:10.5px;
-    letter-spacing:2.2px;
-    text-transform:uppercase;
-    color:var(--gold);
-    margin-bottom:6px;
-  }
-  .wordmark{
-    font-family:var(--serif);
-    font-size:30px;
-    font-weight:600;
-    letter-spacing:0.2px;
-  }
-  .wordmark .light{
-    font-weight:400;
-    font-style:italic;
-    color:#b9c6d3;
-  }
-  .masthead-meta{
-    font-family:var(--mono);
-    font-size:12px;
-    color:#9db1c4;
-    text-align:right;
-    line-height:1.6;
-  }
-  .masthead-rule{
-    height:2px;
-    background:linear-gradient(90deg, var(--gold), rgba(182,145,44,0) 70%);
+  .banner p{
+    margin:0;
+    font-size:13.5px;
+    color:#c7d3e0;
+    max-width:900px;
+    line-height:1.5;
   }
 
-  main{
-    max-width:1160px;
-    margin:0 auto;
-    padding:30px 24px 90px;
-  }
-
-  /* ---------- Stepper ---------- */
-  .stepper{
-    display:flex;
-    align-items:center;
-    margin-bottom:26px;
-    padding:0 4px;
-  }
-  .stepper .step-item{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    color:var(--ink-faint);
-  }
-  .stepper .step-item.active{color:var(--navy);}
-  .stepper .dot{
-    width:26px;height:26px;border-radius:50%;
-    border:1.5px solid var(--line);
-    display:flex;align-items:center;justify-content:center;
-    font-family:var(--mono);font-size:12px;font-weight:600;
-    background:#fff;
-    flex-shrink:0;
-  }
-  .stepper .step-item.active .dot{
-    border-color:var(--gold);
-    color:var(--navy);
-    background:var(--gold-soft);
-  }
-  .stepper .step-label{
-    font-size:12.5px;
-    font-weight:600;
-    letter-spacing:0.2px;
-  }
-  .stepper .connector{
-    flex:1;
-    height:1px;
-    background:var(--line);
-    margin:0 14px;
-  }
-
-  /* ---------- Panels ---------- */
   .panel{
     background:var(--panel);
     border:1px solid var(--line);
-    border-radius:8px;
+    border-radius:10px;
+    padding:24px 28px;
     margin-bottom:20px;
-    overflow:hidden;
-    box-shadow:0 1px 2px rgba(15,31,48,0.03);
   }
-  .panel-head{
-    display:flex;
-    align-items:baseline;
-    gap:10px;
-    padding:18px 22px 14px;
-    border-bottom:1px solid var(--line-soft);
-  }
-  .panel-head .num{
-    font-family:var(--mono);
-    font-size:11px;
-    color:var(--gold);
-    letter-spacing:1px;
-  }
-  .panel-head h2{
-    font-family:var(--serif);
-    font-size:19px;
-    font-weight:600;
-    margin:0;
-    color:var(--navy);
-  }
-  .panel-head .hint{
-    margin-left:auto;
-    font-size:12px;
-    color:var(--ink-faint);
-    font-style:italic;
-  }
-  .panel-body{padding:22px;}
-
-  /* ---------- Dropzones ---------- */
-  .drop-row{display:flex;gap:16px;flex-wrap:wrap;}
-  .dropzone{
-    flex:1;
-    min-width:260px;
-    border:1.5px dashed var(--line);
-    border-radius:6px;
-    background:#fbfcfd;
-    padding:26px 18px;
-    text-align:center;
-    cursor:pointer;
-    transition:border-color .15s, background .15s;
-    position:relative;
-  }
-  .dropzone:hover, .dropzone.dragover{
-    border-color:var(--gold);
-    background:var(--gold-soft);
-  }
-  .dropzone .dz-icon{
-    font-family:var(--serif);
-    font-size:22px;
-    color:var(--navy);
-    margin-bottom:6px;
-  }
-  .dropzone .dz-label{
-    font-size:11px;
+  .panel h2{
+    font-size:16px;
     font-weight:700;
-    letter-spacing:1.2px;
-    text-transform:uppercase;
-    color:var(--ink-soft);
-    margin-bottom:8px;
+    margin:0 0 4px;
+    color:var(--ink);
   }
-  .dropzone .dz-text{
+  .panel .sub{
     font-size:13px;
     color:var(--ink-soft);
+    margin:0 0 18px;
   }
-  .dropzone .dz-file{
-    font-family:var(--mono);
-    font-size:12px;
-    color:var(--emerald);
-    margin-top:8px;
-    word-break:break-all;
+
+  .load-row{
+    display:flex;
+    gap:16px;
+    align-items:stretch;
+    flex-wrap:wrap;
   }
+  .load-col{flex:1;min-width:240px;display:flex;flex-direction:column;}
+  .load-col .dz-label{
+    font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;
+    color:var(--ink-soft);margin-bottom:8px;
+  }
+  .dropzone{
+    flex:1;
+    border:1.5px dashed #b9c2cd;
+    border-radius:6px;
+    background:#fbfcfd;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    min-height:70px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    padding:12px;
+  }
+  .dropzone:hover, .dropzone.dragover{
+    border-color:var(--navy);
+    background:#f2f5f9;
+  }
+  .dropzone .dz-text{font-size:13.5px;color:var(--ink-soft);}
+  .dropzone.has-file{border-style:solid;border-color:var(--emerald-line);background:var(--emerald-soft);}
+  .dropzone.has-file .dz-text{color:var(--emerald);font-weight:600;font-family:var(--mono);font-size:12.5px;word-break:break-all;}
   .dropzone input[type=file]{display:none;}
 
-  .field-inline{
+  .run-col{display:flex;align-items:flex-end;}
+  .run-col button{
+    width:100%;
+    min-height:70px;
+    min-width:170px;
+  }
+
+  button{
+    border:none;
+    border-radius:6px;
+    padding:10px 18px;
+    font-size:13.5px;
+    font-weight:700;
+    font-family:var(--sans);
+    cursor:pointer;
+    background:var(--navy);
+    color:#fff;
+    letter-spacing:0.1px;
+  }
+  button:hover{background:var(--navy-dark);}
+  button:disabled{background:#9aa7b4;opacity:0.75;cursor:not-allowed;}
+  button.ghost{
+    background:transparent;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    padding:6px 12px;
+    font-size:12px;
+    font-weight:600;
+  }
+  button.ghost:hover{background:#f4f6f8;color:var(--ink);}
+
+  details.advanced{margin-top:16px;}
+  details.advanced summary{
+    font-size:13px;
+    font-weight:600;
+    color:var(--blue-link);
+    cursor:pointer;
+    list-style:none;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+  }
+  details.advanced summary::-webkit-details-marker{display:none;}
+  details.advanced summary::after{content:"▾";font-size:10px;transition:transform .15s;}
+  details.advanced[open] summary::after{transform:rotate(180deg);}
+  details.advanced .adv-body{
+    padding:16px 0 4px;
     display:flex;
     flex-wrap:wrap;
-    gap:14px;
+    gap:16px;
     align-items:flex-end;
-    margin-top:16px;
   }
+
   .field{display:flex;flex-direction:column;gap:5px;}
   .field label{
-    font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;
+    font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;
     color:var(--ink-soft);
   }
   select, input[type=number], input[type=text]{
@@ -240,46 +186,7 @@
     color:var(--ink);
     min-width:180px;
   }
-  select:focus, input:focus{outline:2px solid var(--gold-soft);border-color:var(--gold);}
-
-  button{
-    border:none;
-    border-radius:5px;
-    padding:10px 18px;
-    font-size:13px;
-    font-weight:600;
-    font-family:var(--sans);
-    cursor:pointer;
-    background:var(--navy);
-    color:#fff;
-    letter-spacing:0.2px;
-  }
-  button:hover{background:var(--navy-2);}
-  button:disabled{opacity:0.4;cursor:not-allowed;}
-  button.gold{background:var(--gold);color:#2b2205;}
-  button.gold:hover{background:#a5811f;}
-  button.ghost{
-    background:transparent;
-    color:var(--ink-soft);
-    border:1px solid var(--line);
-    padding:6px 12px;
-    font-size:12px;
-    font-weight:600;
-  }
-  button.ghost:hover{background:#f4f6f8;color:var(--ink);}
-
-  details.advanced{margin-top:14px;}
-  details.advanced summary{
-    font-size:12px;
-    font-weight:600;
-    color:var(--ink-soft);
-    cursor:pointer;
-    list-style:none;
-  }
-  details.advanced summary::-webkit-details-marker{display:none;}
-  details.advanced summary::before{content:"▸ ";color:var(--gold);}
-  details.advanced[open] summary::before{content:"▾ ";}
-  details.advanced .adv-body{padding-top:10px;}
+  select:focus, input:focus{outline:2px solid #d7e2f0;border-color:var(--navy);}
 
   .status-line{
     margin-top:12px;
@@ -291,118 +198,66 @@
   .status-line.err{color:var(--rose);}
   .status-line.ok{color:var(--emerald);}
 
-  /* ---------- Tables ---------- */
+  .no-results{
+    text-align:center;
+    padding:64px 20px 40px;
+  }
+  .no-results h3{
+    font-size:16px;
+    font-weight:700;
+    margin:0 0 8px;
+    color:var(--ink);
+  }
+  .no-results p{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin:0;
+  }
+
+  .review-toggle{margin-top:18px;}
+
   table{width:100%;border-collapse:collapse;font-size:12.5px;}
   th{
-    text-align:left;
-    background:#f5f7f9;
-    padding:8px 10px;
-    border-bottom:1px solid var(--line);
-    font-size:10.5px;
-    text-transform:uppercase;
-    letter-spacing:0.6px;
-    color:var(--ink-soft);
-    font-weight:700;
-    position:sticky;top:0;
+    text-align:left;background:#f5f7f9;padding:8px 10px;
+    border-bottom:1px solid var(--line);font-size:10.5px;
+    text-transform:uppercase;letter-spacing:0.5px;color:var(--ink-soft);
+    font-weight:700;position:sticky;top:0;
   }
-  td{
-    padding:7px 10px;
-    border-bottom:1px solid var(--line-soft);
-    vertical-align:top;
-    font-variant-numeric:tabular-nums;
-  }
+  td{padding:7px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top;font-variant-numeric:tabular-nums;}
   td[contenteditable=true]{outline:none;}
-  td[contenteditable=true]:focus{background:var(--gold-soft);}
+  td[contenteditable=true]:focus{background:#fff6d8;}
   .num{text-align:right;font-family:var(--mono);white-space:nowrap;}
-  .table-wrap{
-    max-height:340px;overflow:auto;
-    border:1px solid var(--line);border-radius:6px;
-  }
+  .table-wrap{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:6px;}
   .table-wrap table{margin:0;}
   .row-del{color:var(--rose);cursor:pointer;font-size:13px;text-align:center;}
   .mini{font-size:11.5px;color:var(--ink-faint);}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px;flex-wrap:wrap;}
+  .empty-state{padding:30px 10px;text-align:center;color:var(--ink-faint);font-size:13px;font-style:italic;}
 
-  .toolbar{
-    display:flex;justify-content:space-between;align-items:center;
-    margin-bottom:9px;gap:8px;flex-wrap:wrap;
-  }
-  .empty-state{padding:34px 10px;text-align:center;color:var(--ink-faint);font-size:13px;font-style:italic;}
-
-  /* ---------- Ledger summary (signature element) ---------- */
   .ledger{
     background:var(--panel);
     border:1px solid var(--line);
-    border-radius:8px;
-    padding:0;
-    margin-bottom:22px;
+    border-radius:10px;
+    margin-bottom:20px;
     overflow:hidden;
-    box-shadow:0 1px 2px rgba(15,31,48,0.03);
   }
-  .ledger-title{
-    font-family:var(--serif);
-    font-size:15px;
-    font-weight:600;
-    color:var(--navy);
-    padding:16px 24px 0;
-  }
-  .ledger-tape{
-    display:flex;
-    align-items:stretch;
-    padding:14px 24px 20px;
-    gap:0;
-  }
-  .ledger-item{
-    flex:1;
-    padding:0 20px;
-    border-right:1px dashed var(--line);
-  }
+  .ledger-title{font-size:14px;font-weight:700;color:var(--ink);padding:16px 24px 0;}
+  .ledger-tape{display:flex;align-items:stretch;padding:14px 24px 20px;}
+  .ledger-item{flex:1;padding:0 20px;border-right:1px dashed var(--line);}
   .ledger-item:last-child{border-right:none;}
-  .ledger-item .l{
-    font-size:10.5px;
-    text-transform:uppercase;
-    letter-spacing:1px;
-    color:var(--ink-faint);
-    font-weight:700;
-  }
-  .ledger-item .v{
-    font-family:var(--mono);
-    font-size:26px;
-    font-weight:600;
-    color:var(--navy);
-    margin-top:4px;
-    font-variant-numeric:tabular-nums;
-  }
+  .ledger-item .l{font-size:10.5px;text-transform:uppercase;letter-spacing:0.8px;color:var(--ink-faint);font-weight:700;}
+  .ledger-item .v{font-family:var(--mono);font-size:25px;font-weight:600;color:var(--ink);margin-top:4px;}
   .ledger-item .v.diff-ok{color:var(--emerald);}
   .ledger-item .v.diff-bad{color:var(--rose);}
-  .ledger-status{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    margin-top:6px;
-    font-family:var(--mono);
-    font-size:11px;
-    font-weight:600;
-    padding:3px 9px;
-    border-radius:20px;
-  }
+  .ledger-status{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;}
   .ledger-status.ok{background:var(--emerald-soft);color:var(--emerald);border:1px solid var(--emerald-line);}
   .ledger-status.bad{background:var(--rose-soft);color:var(--rose);border:1px solid var(--rose-line);}
   .ledger-status .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
 
-  .count-cards{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(170px,1fr));
-    gap:10px;
-    margin-bottom:20px;
-  }
-  .count-card{
-    border:1px solid var(--line);
-    border-radius:7px;
-    background:#fff;
-    padding:14px 16px;
-  }
-  .count-card .n{font-family:var(--mono);font-size:24px;font-weight:600;color:var(--navy);}
-  .count-card .l{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;}
+  .count-cards{display:grid;grid-template-columns:repeat(auto-fit, minmax(170px,1fr));gap:10px;margin-bottom:20px;}
+  .count-card{border:1px solid var(--line);border-radius:8px;background:#fff;padding:14px 16px;}
+  .count-card .n{font-family:var(--mono);font-size:23px;font-weight:600;color:var(--ink);}
+  .count-card .l{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px;}
   .count-card.matched{border-color:var(--emerald-line);background:var(--emerald-soft);}
   .count-card.matched .n{color:var(--emerald);}
   .count-card.rose{border-color:var(--rose-line);background:var(--rose-soft);}
@@ -410,183 +265,76 @@
   .count-card.amber{border-color:var(--amber-line);background:var(--amber-soft);}
   .count-card.amber .n{color:var(--amber);}
 
-  /* ---------- Results tabs ---------- */
   .results-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);}
-  .tab-btn{
-    background:transparent;color:var(--ink-faint);border:none;
-    border-bottom:2px solid transparent;border-radius:0;
-    padding:10px 16px;font-weight:600;font-size:12.5px;
-  }
-  .tab-btn.active{color:var(--navy);border-bottom:2px solid var(--gold);}
+  .tab-btn{background:transparent;color:var(--ink-faint);border:none;border-bottom:2px solid transparent;border-radius:0;padding:10px 16px;font-weight:700;font-size:12.5px;}
+  .tab-btn.active{color:var(--ink);border-bottom:2px solid var(--navy);}
   .tab-panel{display:none;padding-top:14px;}
   .tab-panel.active{display:block;}
 
-  .badge{
-    display:inline-block;padding:2px 8px;border-radius:20px;
-    font-size:10.5px;font-weight:700;font-family:var(--mono);
-  }
-  .badge.matched{background:var(--emerald-soft);color:var(--emerald);}
-  .badge.amber{background:var(--amber-soft);color:var(--amber);}
-  .badge.rose{background:var(--rose-soft);color:var(--rose);}
-
   footer{
-    text-align:center;font-size:11.5px;color:var(--ink-faint);
-    padding:24px;font-family:var(--mono);
-  }
-  .step-num-badge{
-    width:22px;height:22px;border-radius:50%;
-    background:var(--navy);color:#fff;
-    font-size:11px;font-weight:700;font-family:var(--mono);
-    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    text-align:center;font-size:12px;color:var(--ink-faint);
+    padding:22px;
   }
 </style>
 </head>
 <body>
-
-<div class="masthead">
-  <div class="masthead-inner">
-    <div>
-      <div class="wordmark-eyebrow">Statement Reconciliation</div>
-      <div class="wordmark">TravelBank <span class="light">↔</span> Business Central</div>
-    </div>
-    <div class="masthead-meta">
-      City National · CC_CITY_NATIONAL<br>
-      Runs entirely in-browser — no data leaves this device
-    </div>
-  </div>
-</div>
-<div class="masthead-rule"></div>
-
 <main>
 
-  <div class="stepper">
-    <div class="step-item active"><div class="dot">1</div><div class="step-label">Statement</div></div>
-    <div class="connector"></div>
-    <div class="step-item active"><div class="dot">2</div><div class="step-label">Ledger</div></div>
-    <div class="connector"></div>
-    <div class="step-item active"><div class="dot">3</div><div class="step-label">Reconcile</div></div>
+  <div class="banner">
+    <h1>Credit Card Reconciliation Tool</h1>
+    <p>Upload this month's TravelBank PDF statement and Business Central ledger export to reconcile them — everything runs in your browser, nothing is uploaded anywhere.</p>
   </div>
 
-  <!-- STEP 1: TravelBank PDF -->
   <div class="panel">
-    <div class="panel-head">
-      <span class="num">01</span>
-      <h2>Card Statement</h2>
-      <span class="hint">PDF · transaction lines are extracted and editable</span>
-    </div>
-    <div class="panel-body">
-      <div class="drop-row">
+    <h2>1. Load this month's files</h2>
+    <p class="sub">Both files stay local to your browser tab. Re-open this file and re-upload each month.</p>
+
+    <div class="load-row">
+      <div class="load-col">
+        <div class="dz-label">PDF Statement</div>
         <div class="dropzone" id="pdfDropzone">
-          <div class="dz-icon">⎙</div>
-          <div class="dz-label">TravelBank Statement</div>
-          <div class="dz-text">Click or drop the statement PDF here</div>
-          <div class="dz-file" id="pdfFileLabel"></div>
+          <div class="dz-text" id="pdfDzText">Click or drop the statement PDF here</div>
           <input type="file" id="pdfFile" accept="application/pdf">
         </div>
       </div>
-
-      <details class="advanced">
-        <summary>Advanced options</summary>
-        <div class="adv-body">
-          <div class="field">
-            <label>Skip lines containing</label>
-            <input type="text" id="pdfSkipWords" value="Total,Subtotal,Page,Balance,Statement,Continued" style="min-width:360px;">
-          </div>
-        </div>
-      </details>
-
-      <div class="field-inline">
-        <button id="parsePdfBtn" class="gold" disabled>Extract transactions</button>
-      </div>
-      <div class="status-line" id="pdfStatus">Choose the TravelBank PDF statement, then extract.</div>
-
-      <div id="pdfPreviewWrap" style="display:none;margin-top:16px;">
-        <div class="toolbar">
-          <span class="mini" id="pdfCount">0 rows extracted</span>
-          <div style="display:flex;gap:6px;">
-            <button class="ghost" id="pdfAddRow">+ Add row</button>
-            <button class="ghost" id="pdfClearAll">Clear all</button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th style="width:100px;">Date</th><th>Description</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr></thead>
-            <tbody id="pdfTableBody"></tbody>
-          </table>
-        </div>
-        <div class="mini" style="margin-top:6px;">Click any cell to edit. Delete header, subtotal, or noise rows.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- STEP 2: BC Excel -->
-  <div class="panel">
-    <div class="panel-head">
-      <span class="num">02</span>
-      <h2>Posted Ledger</h2>
-      <span class="hint">Business Central export · Excel or CSV</span>
-    </div>
-    <div class="panel-body">
-      <div class="drop-row">
+      <div class="load-col">
+        <div class="dz-label">Excel Ledger Export</div>
         <div class="dropzone" id="xlsxDropzone">
-          <div class="dz-icon">▤</div>
-          <div class="dz-label">BC Posting Journal / Posted Log</div>
-          <div class="dz-text">Click or drop the ledger .xlsx / .csv here</div>
-          <div class="dz-file" id="xlsxFileLabel"></div>
+          <div class="dz-text" id="xlsxDzText">Click or drop the ledger .xlsx here</div>
           <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv">
         </div>
       </div>
+      <div class="run-col">
+        <button id="runMatchBtn" disabled>Run Reconciliation</button>
+      </div>
+    </div>
 
-      <div class="field-inline">
+    <details class="advanced">
+      <summary>Advanced options</summary>
+      <div class="adv-body">
         <div class="field">
-          <label>Sheet</label>
+          <label>PDF: skip lines containing</label>
+          <input type="text" id="pdfSkipWords" value="Total,Subtotal,Page,Balance,Statement,Continued" style="min-width:340px;">
+        </div>
+        <div class="field">
+          <label>Ledger sheet</label>
           <select id="sheetSelect" disabled><option>—</option></select>
         </div>
+        <div class="field"><label>Date column</label><select id="mapDate"><option value="">— auto —</option></select></div>
+        <div class="field"><label>Amount column</label><select id="mapAmount"><option value="">— auto —</option></select></div>
+        <div class="field"><label>Description column</label><select id="mapDesc"><option value="">— auto —</option></select></div>
+        <div class="field"><label>Reference column</label><select id="mapRef"><option value="">— auto —</option></select></div>
       </div>
+    </details>
 
-      <div id="mapWrap" style="display:none;margin-top:16px;">
-        <div class="field-inline">
-          <div class="field"><label>Date column</label><select id="mapDate"></select></div>
-          <div class="field"><label>Amount column</label><select id="mapAmount"></select></div>
-          <div class="field"><label>Description / Merchant</label><select id="mapDesc"></select></div>
-          <div class="field"><label>Reference (optional)</label><select id="mapRef"></select></div>
-          <button id="applyMapBtn">Load transactions</button>
-        </div>
-        <div class="status-line" id="xlsxStatus"></div>
-
-        <div id="xlsxPreviewWrap" style="display:none;margin-top:16px;">
-          <div class="toolbar">
-            <span class="mini" id="xlsxCount">0 rows loaded</span>
-            <button class="ghost" id="xlsxClearAll">Clear all</button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th style="width:100px;">Date</th><th>Description</th><th style="width:120px;">Reference</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr></thead>
-              <tbody id="xlsxTableBody"></tbody>
-            </table>
-          </div>
-          <div class="status-line" id="dupWarning"></div>
-        </div>
-      </div>
-    </div>
+    <div class="status-line" id="runStatus"></div>
   </div>
 
-  <!-- STEP 3: Match -->
-  <div class="panel">
-    <div class="panel-head">
-      <span class="num">03</span>
-      <h2>Reconcile</h2>
-      <span class="hint">Matches on exact date and amount</span>
-    </div>
-    <div class="panel-body">
-      <div class="field-inline">
-        <button id="runMatchBtn" class="gold">Run reconciliation</button>
-      </div>
-      <div class="status-line" id="matchStatus"></div>
-    </div>
+  <div id="emptyState" class="no-results">
+    <h3>No results yet</h3>
+    <p>Upload both files above and click "Run Reconciliation" to see the breakdown.</p>
   </div>
 
-  <!-- RESULTS -->
   <div id="resultsWrap" style="display:none;">
 
     <div class="ledger">
@@ -610,46 +358,63 @@
 
     <div class="count-cards" id="summaryCards"></div>
 
-    <div class="panel">
-      <div class="panel-body" style="padding-top:16px;">
-        <div class="results-tabs">
-          <button class="tab-btn active" data-tab="matched">Matched</button>
-          <button class="tab-btn" data-tab="unmatchedStatement">On statement, not in ledger</button>
-          <button class="tab-btn" data-tab="unmatchedBC">In ledger, not on statement</button>
-        </div>
+    <div class="panel" style="padding-top:20px;">
+      <div class="results-tabs">
+        <button class="tab-btn active" data-tab="matched">Matched</button>
+        <button class="tab-btn" data-tab="unmatchedStatement">On statement, not in ledger</button>
+        <button class="tab-btn" data-tab="unmatchedBC">In ledger, not on statement</button>
+      </div>
 
-        <div class="tab-panel active" id="panel-matched">
-          <div class="toolbar"><span class="mini" id="matchedCount"></span><button class="ghost" id="exportMatched">Export CSV</button></div>
-          <div class="table-wrap"><table>
-            <thead><tr><th>Statement date</th><th>Statement description</th><th class="num">Statement amt</th><th>Ledger date</th><th>Ledger description</th><th>Reference</th><th class="num">Ledger amt</th></tr></thead>
-            <tbody id="matchedBody"></tbody>
-          </table></div>
-        </div>
+      <div class="tab-panel active" id="panel-matched">
+        <div class="toolbar"><span class="mini" id="matchedCount"></span><button class="ghost" id="exportMatched">Export CSV</button></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Statement date</th><th>Statement description</th><th class="num">Statement amt</th><th>Ledger date</th><th>Ledger description</th><th>Reference</th><th class="num">Ledger amt</th></tr></thead>
+          <tbody id="matchedBody"></tbody>
+        </table></div>
+      </div>
 
-        <div class="tab-panel" id="panel-unmatchedStatement">
-          <div class="toolbar"><span class="mini" id="unmatchedStatementCount"></span><button class="ghost" id="exportUnmatchedStatement">Export CSV</button></div>
-          <div class="mini" style="margin-bottom:6px;">Charged on the card but not yet found in the ledger — likely still needs to be posted.</div>
-          <div class="table-wrap"><table>
-            <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
-            <tbody id="unmatchedStatementBody"></tbody>
-          </table></div>
-        </div>
+      <div class="tab-panel" id="panel-unmatchedStatement">
+        <div class="toolbar"><span class="mini" id="unmatchedStatementCount"></span><button class="ghost" id="exportUnmatchedStatement">Export CSV</button></div>
+        <div class="mini" style="margin-bottom:6px;">Charged on the card but not yet found in the ledger — likely still needs to be posted.</div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
+          <tbody id="unmatchedStatementBody"></tbody>
+        </table></div>
+      </div>
 
-        <div class="tab-panel" id="panel-unmatchedBC">
-          <div class="toolbar"><span class="mini" id="unmatchedBCCount"></span><button class="ghost" id="exportUnmatchedBC">Export CSV</button></div>
-          <div class="mini" style="margin-bottom:6px;">Posted in the ledger but not found on this statement — check card, date range, or a possible duplicate posting.</div>
-          <div class="table-wrap"><table>
-            <thead><tr><th>Date</th><th>Description</th><th>Reference</th><th class="num">Amount</th></tr></thead>
-            <tbody id="unmatchedBCBody"></tbody>
-          </table></div>
-        </div>
+      <div class="tab-panel" id="panel-unmatchedBC">
+        <div class="toolbar"><span class="mini" id="unmatchedBCCount"></span><button class="ghost" id="exportUnmatchedBC">Export CSV</button></div>
+        <div class="mini" style="margin-bottom:6px;">Posted in the ledger but not found on this statement — check card, date range, or a possible duplicate posting.</div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Description</th><th>Reference</th><th class="num">Amount</th></tr></thead>
+          <tbody id="unmatchedBCBody"></tbody>
+        </table></div>
       </div>
     </div>
+
+    <details class="advanced review-toggle">
+      <summary>Review / edit extracted statement rows</summary>
+      <div style="padding-top:14px;">
+        <div class="toolbar">
+          <span class="mini" id="pdfCount">0 rows extracted</span>
+          <div style="display:flex;gap:6px;">
+            <button class="ghost" id="pdfAddRow">+ Add row</button>
+            <button class="ghost" id="rerunBtn">Re-run reconciliation</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="width:100px;">Date</th><th>Description</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr></thead>
+            <tbody id="pdfTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </details>
   </div>
 
 </main>
 
-<footer>MARINETEKNIK · FINANCE — RUNS CLIENT-SIDE, NO UPLOAD</footer>
+<footer>Runs entirely client-side (PDF.js + SheetJS) · no data leaves your browser · re-run each statement cycle with new files.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -658,8 +423,10 @@ let pdfRows = [];
 let bcRows = [];
 let bcWorkbookRows = [];
 let bcHeaders = [];
+let currentWorkbook = null;
+let pdfFileChosen = false;
+let xlsxFileChosen = false;
 
-// ---------- helpers ----------
 function parseAmount(str){
   if(str === null || str === undefined) return NaN;
   let s = String(str).trim();
@@ -726,15 +493,19 @@ function downloadCsv(filename, rows){
   a.click();
 }
 
-// ---------- Dropzone wiring ----------
-function wireDropzone(zoneId, inputId, labelId, onFile){
+function updateRunButton(){
+  document.getElementById('runMatchBtn').disabled = !(pdfFileChosen && xlsxFileChosen);
+}
+
+function wireDropzone(zoneId, inputId, textId, onFile){
   const zone = document.getElementById(zoneId);
   const input = document.getElementById(inputId);
-  const label = document.getElementById(labelId);
+  const textEl = document.getElementById(textId);
   zone.addEventListener('click', ()=> input.click());
   input.addEventListener('change', ()=>{
     if(input.files.length){
-      label.textContent = '✓ ' + input.files[0].name;
+      zone.classList.add('has-file');
+      textEl.textContent = '✓ ' + input.files[0].name;
       onFile(input.files[0]);
     }
   });
@@ -747,81 +518,138 @@ function wireDropzone(zoneId, inputId, labelId, onFile){
   zone.addEventListener('drop', e=>{
     if(e.dataTransfer.files.length){
       input.files = e.dataTransfer.files;
-      label.textContent = '✓ ' + input.files[0].name;
+      zone.classList.add('has-file');
+      textEl.textContent = '✓ ' + input.files[0].name;
       onFile(input.files[0]);
     }
   });
 }
 
-wireDropzone('pdfDropzone','pdfFile','pdfFileLabel', ()=>{
-  document.getElementById('parsePdfBtn').disabled = false;
+wireDropzone('pdfDropzone','pdfFile','pdfDzText', ()=>{
+  pdfFileChosen = true;
+  updateRunButton();
 });
-wireDropzone('xlsxDropzone','xlsxFile','xlsxFileLabel', (file)=>{
-  handleXlsxFile(file);
+wireDropzone('xlsxDropzone','xlsxFile','xlsxDzText', (file)=>{
+  xlsxFileChosen = true;
+  loadWorkbook(file);
+  updateRunButton();
 });
 
-// ---------- STEP 1: PDF extraction ----------
-document.getElementById('parsePdfBtn').addEventListener('click', async ()=>{
+function loadWorkbook(file){
+  file.arrayBuffer().then(buf=>{
+    currentWorkbook = XLSX.read(buf, {type:'array', cellDates:true});
+    const sheetSelect = document.getElementById('sheetSelect');
+    sheetSelect.innerHTML = '';
+    currentWorkbook.SheetNames.forEach(name=>{
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      sheetSelect.appendChild(opt);
+    });
+    sheetSelect.disabled = false;
+    populateSheetColumns(currentWorkbook.SheetNames[0]);
+  });
+}
+
+document.getElementById('sheetSelect').addEventListener('change', e=>{
+  populateSheetColumns(e.target.value);
+});
+
+function populateSheetColumns(sheetName){
+  const ws = currentWorkbook.Sheets[sheetName];
+  const json = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false, dateNF:'mm/dd/yyyy'});
+  bcWorkbookRows = json;
+  bcHeaders = json.length ? Object.keys(json[0]) : [];
+
+  ['mapDate','mapAmount','mapDesc','mapRef'].forEach(id=>{
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">— auto —</option>';
+    bcHeaders.forEach(h=>{
+      const opt = document.createElement('option');
+      opt.value = h; opt.textContent = h;
+      sel.appendChild(opt);
+    });
+  });
+  guessColumn('mapDate', ['posted date','posting date','date']);
+  guessColumn('mapAmount', ['amount','amt']);
+  guessColumn('mapDesc', ['merchant','description','vendor','employee']);
+  guessColumn('mapRef', ['bc posting no','posting no','document no','reference','ref']);
+}
+
+function guessColumn(selectId, keywords){
+  const sel = document.getElementById(selectId);
+  for(const h of bcHeaders){
+    const low = h.toLowerCase();
+    if(keywords.some(k => low.includes(k))){ sel.value = h; return; }
+  }
+}
+
+function buildBcRows(){
+  const dateCol = document.getElementById('mapDate').value || bcHeaders.find(h=>/posted date|posting date|date/i.test(h));
+  const amtCol = document.getElementById('mapAmount').value || bcHeaders.find(h=>/amount|amt/i.test(h));
+  const descCol = document.getElementById('mapDesc').value || bcHeaders.find(h=>/merchant|description|vendor|employee/i.test(h));
+  const refCol = document.getElementById('mapRef').value || bcHeaders.find(h=>/posting no|document no|reference|ref/i.test(h));
+
+  bcRows = [];
+  if(!dateCol || !amtCol) return {ok:false};
+  let skipped = 0;
+  bcWorkbookRows.forEach(r=>{
+    const d = parseDateFlexible(r[dateCol]);
+    const a = parseAmount(r[amtCol]);
+    if(!d || isNaN(a)){ skipped++; return; }
+    bcRows.push({
+      date: d, amount: a,
+      desc: descCol ? String(r[descCol]||'') : '',
+      ref: refCol ? String(r[refCol]||'') : ''
+    });
+  });
+  return {ok:true, skipped};
+}
+
+async function extractPdf(){
   const file = document.getElementById('pdfFile').files[0];
-  const statusEl = document.getElementById('pdfStatus');
-  if(!file) return;
-  statusEl.className='status-line';
-  statusEl.textContent = 'Reading PDF...';
   const skipWords = document.getElementById('pdfSkipWords').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
 
-  try{
-    const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-    let lines = [];
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  let lines = [];
 
-    for(let p=1; p<=pdf.numPages; p++){
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      const byY = {};
-      content.items.forEach(item=>{
-        const y = Math.round(item.transform[5]);
-        if(!byY[y]) byY[y] = [];
-        byY[y].push(item);
-      });
-      const ys = Object.keys(byY).map(Number).sort((a,b)=>b-a);
-      ys.forEach(y=>{
-        const lineItems = byY[y].sort((a,b)=>a.transform[4]-b.transform[4]);
-        const text = lineItems.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
-        if(text) lines.push(text);
-      });
-    }
-
-    const dateRe = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/;
-    const amtRe = /(\(?\-?\$?\d{1,3}(?:,\d{3})*\.\d{2}\)?)(?!.*\d{1,3}(?:,\d{3})*\.\d{2})/;
-
-    let extracted = [];
-    lines.forEach(line=>{
-      const lower = line.toLowerCase();
-      if(skipWords.some(w=> w && lower.includes(w))) return;
-      const dm = line.match(dateRe);
-      const am = line.match(amtRe);
-      if(!dm || !am) return;
-      const amount = parseAmount(am[1]);
-      if(isNaN(amount) || amount === 0) return;
-      let desc = line.replace(dm[0],'').replace(am[1],'').replace(/\s{2,}/g,' ').trim();
-      const d = parseDateFlexible(dm[1]);
-      if(!d) return;
-      extracted.push({date: d, desc: desc || '(description)', amount: amount});
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const byY = {};
+    content.items.forEach(item=>{
+      const y = Math.round(item.transform[5]);
+      if(!byY[y]) byY[y] = [];
+      byY[y].push(item);
     });
-
-    pdfRows = extracted;
-    renderPdfTable();
-    statusEl.className = 'status-line ok';
-    statusEl.textContent = `Extracted ${extracted.length} transaction line(s) from ${pdf.numPages} page(s). Review before matching.`;
-    document.getElementById('pdfPreviewWrap').style.display = 'block';
-  }catch(err){
-    statusEl.className = 'status-line err';
-    statusEl.textContent = 'Could not read this PDF: ' + err.message + '. You can still add rows manually below.';
-    pdfRows = [];
-    renderPdfTable();
-    document.getElementById('pdfPreviewWrap').style.display = 'block';
+    const ys = Object.keys(byY).map(Number).sort((a,b)=>b-a);
+    ys.forEach(y=>{
+      const lineItems = byY[y].sort((a,b)=>a.transform[4]-b.transform[4]);
+      const text = lineItems.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+      if(text) lines.push(text);
+    });
   }
-});
+
+  const dateRe = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/;
+  const amtRe = /(\(?\-?\$?\d{1,3}(?:,\d{3})*\.\d{2}\)?)(?!.*\d{1,3}(?:,\d{3})*\.\d{2})/;
+
+  let extracted = [];
+  lines.forEach(line=>{
+    const lower = line.toLowerCase();
+    if(skipWords.some(w=> w && lower.includes(w))) return;
+    const dm = line.match(dateRe);
+    const am = line.match(amtRe);
+    if(!dm || !am) return;
+    const amount = parseAmount(am[1]);
+    if(isNaN(amount) || amount === 0) return;
+    let desc = line.replace(dm[0],'').replace(am[1],'').replace(/\s{2,}/g,' ').trim();
+    const d = parseDateFlexible(dm[1]);
+    if(!d) return;
+    extracted.push({date: d, desc: desc || '(description)', amount: amount});
+  });
+
+  pdfRows = extracted;
+}
 
 function renderPdfTable(){
   const body = document.getElementById('pdfTableBody');
@@ -864,171 +692,22 @@ document.getElementById('pdfAddRow').addEventListener('click', ()=>{
   pdfRows.push({date: new Date(), desc:'', amount:0});
   renderPdfTable();
 });
-document.getElementById('pdfClearAll').addEventListener('click', ()=>{
-  if(confirm('Clear all extracted statement rows?')){ pdfRows = []; renderPdfTable(); }
-});
 
-// ---------- STEP 2: Excel ----------
-let currentWorkbook = null;
-
-function handleXlsxFile(file){
-  const statusEl = document.getElementById('xlsxStatus');
-  statusEl.textContent = '';
-  file.arrayBuffer().then(buf=>{
-    currentWorkbook = XLSX.read(buf, {type:'array', cellDates:true});
-    const sheetSelect = document.getElementById('sheetSelect');
-    sheetSelect.innerHTML = '';
-    currentWorkbook.SheetNames.forEach(name=>{
-      const opt = document.createElement('option');
-      opt.value = name; opt.textContent = name;
-      sheetSelect.appendChild(opt);
-    });
-    sheetSelect.disabled = false;
-    loadSheet(currentWorkbook.SheetNames[0]);
-  });
-}
-
-document.getElementById('sheetSelect').addEventListener('change', e=>{
-  loadSheet(e.target.value);
-});
-
-function loadSheet(sheetName){
-  const ws = currentWorkbook.Sheets[sheetName];
-  const json = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false, dateNF:'mm/dd/yyyy'});
-  bcWorkbookRows = json;
-  bcHeaders = json.length ? Object.keys(json[0]) : [];
-
-  ['mapDate','mapAmount','mapDesc','mapRef'].forEach(id=>{
-    const sel = document.getElementById(id);
-    sel.innerHTML = '<option value="">— none —</option>';
-    bcHeaders.forEach(h=>{
-      const opt = document.createElement('option');
-      opt.value = h; opt.textContent = h;
-      sel.appendChild(opt);
-    });
-  });
-
-  guessColumn('mapDate', ['posted date','posting date','date']);
-  guessColumn('mapAmount', ['amount','amt']);
-  guessColumn('mapDesc', ['merchant','description','vendor','employee']);
-  guessColumn('mapRef', ['bc posting no','posting no','document no','reference','ref']);
-
-  document.getElementById('mapWrap').style.display = 'block';
-  document.getElementById('xlsxStatus').textContent = `${json.length} row(s) found in sheet "${sheetName}". Confirm column mapping, then load.`;
-}
-
-function guessColumn(selectId, keywords){
-  const sel = document.getElementById(selectId);
-  for(const h of bcHeaders){
-    const low = h.toLowerCase();
-    if(keywords.some(k => low.includes(k))){
-      sel.value = h;
-      return;
-    }
-  }
-}
-
-document.getElementById('applyMapBtn').addEventListener('click', ()=>{
-  const dateCol = document.getElementById('mapDate').value;
-  const amtCol = document.getElementById('mapAmount').value;
-  const descCol = document.getElementById('mapDesc').value;
-  const refCol = document.getElementById('mapRef').value;
-  const statusEl = document.getElementById('xlsxStatus');
-
-  if(!dateCol || !amtCol){
-    statusEl.className = 'status-line err';
-    statusEl.textContent = 'Please select at least a Date column and an Amount column.';
-    return;
-  }
-
-  bcRows = [];
-  let skipped = 0;
-  bcWorkbookRows.forEach(r=>{
-    const d = parseDateFlexible(r[dateCol]);
-    const a = parseAmount(r[amtCol]);
-    if(!d || isNaN(a)){ skipped++; return; }
-    bcRows.push({
-      date: d, amount: a,
-      desc: descCol ? String(r[descCol]||'') : '',
-      ref: refCol ? String(r[refCol]||'') : ''
-    });
-  });
-
-  renderBcTable();
-  statusEl.className = 'status-line ok';
-  statusEl.textContent = `Loaded ${bcRows.length} row(s)${skipped ? ` (${skipped} skipped — missing date or amount)` : ''}.`;
-  document.getElementById('xlsxPreviewWrap').style.display = 'block';
-});
-
-function renderBcTable(){
-  const body = document.getElementById('xlsxTableBody');
-  body.innerHTML = '';
-  bcRows.forEach((r, idx)=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${fmtDate(r.date)}</td>
-      <td>${r.desc}</td>
-      <td>${r.ref}</td>
-      <td class="num">${fmtAmt(r.amount)}</td>
-      <td class="row-del" data-idx="${idx}">✕</td>
-    `;
-    body.appendChild(tr);
-  });
-  document.getElementById('xlsxCount').textContent = `${bcRows.length} rows loaded`;
-
-  document.querySelectorAll('#xlsxTableBody .row-del').forEach(btn=>{
-    btn.addEventListener('click', e=>{
-      const idx = +e.target.dataset.idx;
-      bcRows.splice(idx,1);
-      renderBcTable();
-    });
-  });
-
-  const seen = {};
-  bcRows.forEach(r=>{
-    const key = fmtDate(r.date)+'|'+r.amount.toFixed(2);
-    seen[key] = (seen[key]||0)+1;
-  });
-  const dupCount = Object.values(seen).filter(c=>c>1).length;
-  const dupEl = document.getElementById('dupWarning');
-  if(dupCount){
-    dupEl.className = 'status-line err';
-    dupEl.textContent = `⚠ ${dupCount} date/amount combination(s) appear more than once in this ledger — possible duplicate postings.`;
-  } else {
-    dupEl.textContent = '';
-  }
-}
-
-document.getElementById('xlsxClearAll').addEventListener('click', ()=>{
-  if(confirm('Clear all loaded ledger rows?')){ bcRows = []; renderBcTable(); }
-});
-
-// ---------- STEP 3: Matching ----------
-document.getElementById('runMatchBtn').addEventListener('click', ()=>{
-  const statusEl = document.getElementById('matchStatus');
-  if(!pdfRows.length && !bcRows.length){
-    statusEl.className = 'status-line err';
-    statusEl.textContent = 'Load at least one statement transaction and one ledger transaction first.';
-    return;
-  }
-
-  const dateTol = 0;        // exact date match only
-  const amtTol = 0.01;      // allow a penny of rounding, not a real tolerance
-
+function runMatch(){
   const bcPool = bcRows.map((r,i)=>({...r, _i:i}));
   const matched = [];
   const unmatchedStatement = [];
 
   pdfRows.forEach(sRow=>{
-    let best = null, bestScore = Infinity;
+    let best = null;
     bcPool.forEach(bRow=>{
       if(bRow._used) return;
+      if(best) return;
       const amtDiff = Math.abs(sRow.amount - bRow.amount);
-      if(amtDiff > amtTol) return;
+      if(amtDiff > 0.01) return;
       const dayDiff = Math.abs((sRow.date - bRow.date) / 86400000);
-      if(dayDiff > dateTol) return;
-      const score = dayDiff * 10 + amtDiff;
-      if(score < bestScore){ bestScore = score; best = bRow; }
+      if(dayDiff > 0) return;
+      best = bRow;
     });
     if(best){
       best._used = true;
@@ -1039,13 +718,8 @@ document.getElementById('runMatchBtn').addEventListener('click', ()=>{
   });
 
   const unmatchedBC = bcPool.filter(r=>!r._used);
-
   renderResults(matched, unmatchedStatement, unmatchedBC);
-  statusEl.className = 'status-line ok';
-  statusEl.textContent = `Done — ${matched.length} matched, ${unmatchedStatement.length} statement-only, ${unmatchedBC.length} ledger-only.`;
-  document.getElementById('resultsWrap').style.display = 'block';
-  document.getElementById('resultsWrap').scrollIntoView({behavior:'smooth', block:'start'});
-});
+}
 
 function renderResults(matched, unmatchedStatement, unmatchedBC){
   const stmtTotal = pdfRows.reduce((s,r)=>s+r.amount,0);
@@ -1093,7 +767,54 @@ function renderResults(matched, unmatchedStatement, unmatchedBC){
   `).join('') || `<tr><td colspan="4" class="empty-state">Every ledger posting was matched to the statement.</td></tr>`;
 
   window._reconData = {matched, unmatchedStatement, unmatchedBC};
+  renderPdfTable();
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsWrap').style.display = 'block';
 }
+
+document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
+  const statusEl = document.getElementById('runStatus');
+  const btn = document.getElementById('runMatchBtn');
+  btn.disabled = true;
+  statusEl.className = 'status-line';
+  statusEl.textContent = 'Reading statement PDF...';
+  try{
+    await extractPdf();
+  }catch(err){
+    statusEl.className = 'status-line err';
+    statusEl.textContent = 'Could not read the PDF: ' + err.message;
+    btn.disabled = false;
+    return;
+  }
+
+  if(!currentWorkbook){
+    statusEl.className = 'status-line err';
+    statusEl.textContent = 'Could not read the ledger file.';
+    btn.disabled = false;
+    return;
+  }
+  const sheetName = document.getElementById('sheetSelect').value || currentWorkbook.SheetNames[0];
+  populateSheetColumns(sheetName);
+  const res = buildBcRows();
+  if(!res.ok){
+    statusEl.className = 'status-line err';
+    statusEl.textContent = 'Could not detect Date/Amount columns in the ledger file — set them under Advanced options.';
+    btn.disabled = false;
+    return;
+  }
+
+  runMatch();
+  statusEl.className = 'status-line ok';
+  statusEl.textContent = `Extracted ${pdfRows.length} statement row(s), loaded ${bcRows.length} ledger row(s)${res.skipped ? ` (${res.skipped} skipped)` : ''}. Matched exact date + amount.`;
+  btn.disabled = false;
+  document.getElementById('resultsWrap').scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+document.getElementById('rerunBtn').addEventListener('click', ()=>{
+  const res = buildBcRows();
+  if(res.ok) runMatch();
+});
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
