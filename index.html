@@ -3,392 +3,237 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MarineTeknik Card Reconciliation</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Credit Card Reconciliation Tool</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --hdr-from:#1d3557;
-    --hdr-to:#3f6592;
-    --navy:#34557f;
-    --navy-dark:#26446b;
-    --blue:#4a78b0;
-    --blue-soft:#e6eef8;
-    --paper:#f3f5f8;
+    --navy:#1f4e79;
+    --navy-dark:#173d61;
+    --paper:#f4f6f9;
     --panel:#ffffff;
-    --line:#e3e7ee;
-    --line-soft:#eef1f5;
-    --ink:#1f2a3a;
-    --ink-soft:#56657a;
-    --ink-faint:#8b97a8;
-    --red:#d92d2d;
-    --red-deep:#c62828;
-    --red-soft:#fde4e4;
-    --orange:#f0a30a;
-    --orange-deep:#d97706;
-    --orange-soft:#fff3dc;
-    --green:#16a34a;
-    --green-soft:#e3f6ea;
-    --sans:'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
-    --shadow:0 1px 3px rgba(22,34,54,.06);
+    --line:#e2e6ec;
+    --line-soft:#eef1f4;
+    --ink:#1d2733;
+    --ink-soft:#56626f;
+    --ink-faint:#8a95a2;
+    --green:#1e8e5a;
+    --green-soft:#eef8f2;
+    --purple:#6a4fb8;
+    --red:#c0392b;
+    --amber:#d99a1c;
+    --dash:#2e9a5b;
+    --sans:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    --shadow:0 1px 3px rgba(20,32,48,.06);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;}
-  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased;}
-  svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;}
+  main{max-width:1240px;margin:0 auto;padding:24px 20px 48px;}
 
-  /* ---------- header ---------- */
-  .hdr{background:linear-gradient(100deg,var(--hdr-from) 0%,var(--hdr-to) 100%);color:#fff;padding:16px 28px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
-  .logo{width:40px;height:40px;border-radius:8px;background:#fff;display:grid;place-items:center;flex:none;}
-  .logo svg{width:24px;height:24px;stroke:var(--hdr-from);stroke-width:2;}
-  .brand h1{margin:0;font-size:21px;font-weight:800;letter-spacing:-.3px;line-height:1.1;}
-  .brand .sub{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#c9d6e8;}
-  .brand .upd{font-size:11px;color:#a9bbd3;margin-top:2px;}
-  .hdr .spacer{flex:1;}
-  .hdr-btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:20px;padding:7px 16px;font-size:12.5px;font-weight:700;font-family:var(--sans);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
-  .hdr-btn:hover{background:rgba(255,255,255,.22);}
-  .hdr-btn svg{width:14px;height:14px;}
+  .banner{background:var(--navy);color:#fff;border-radius:8px;padding:22px 28px;margin-bottom:18px;}
+  .banner h1{margin:0 0 4px;font-size:21px;font-weight:700;}
+  .banner p{margin:0;font-size:13px;color:#d5e1ee;}
 
-  /* ---------- tabs ---------- */
-  .tabs{background:#fff;border-bottom:1px solid var(--line);padding:0 28px;display:flex;gap:6px;overflow-x:auto;}
-  .tab{background:none;border:none;border-bottom:2px solid transparent;padding:13px 14px 11px;font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:7px;}
-  .tab:hover{color:var(--ink);}
-  .tab.active{color:var(--blue);border-bottom-color:var(--blue);}
-  .tab .count{background:var(--red);color:#fff;font-size:10.5px;font-weight:700;border-radius:10px;padding:0 7px;line-height:17px;}
-  .tab .count:empty{display:none;}
-  .view{display:none;}
-  .view.active{display:block;}
+  .panel{background:var(--panel);border-radius:8px;box-shadow:var(--shadow);padding:20px 24px;margin-bottom:18px;min-width:0;}
+  .panel h2{margin:0;font-size:15.5px;font-weight:700;}
+  .panel .sub{margin:2px 0 14px;font-size:12.5px;color:var(--ink-soft);}
 
-  main{padding:22px 28px 36px;max-width:1500px;}
-
-  /* ---------- cards ---------- */
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:18px 20px;margin-bottom:18px;min-width:0;}
-  .card.top-blue{border-top:3px solid var(--blue);}
-  .card.top-red{border-top:3px solid var(--red);}
-  .card.top-orange{border-top:3px solid var(--orange);}
-  .card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;}
-  .card-title{font-size:15px;font-weight:700;margin:0;color:var(--ink);}
-  .card-sub{font-size:12px;color:var(--ink-faint);margin:2px 0 0;}
-  .card-ico{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;flex:none;}
-  .card-ico.red{background:var(--red-soft);color:var(--red);}
-  .card-ico.blue{background:var(--blue-soft);color:var(--blue);}
-  .card-ico.orange{background:var(--orange-soft);color:var(--orange-deep);}
-
-  /* buttons & inputs */
-  button{font-family:var(--sans);}
-  .btn{border:none;border-radius:20px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;background:var(--navy);color:#fff;display:inline-flex;align-items:center;gap:7px;justify-content:center;}
-  .btn:hover{background:var(--navy-dark);}
-  .btn:disabled{background:#a9b6c8;cursor:not-allowed;}
-  .btn.orange{background:var(--orange);color:#3a2600;}
-  .btn.orange:hover{background:#e0960a;}
-  .btn.ghost{background:#fff;color:var(--ink-soft);border:1px solid var(--line);padding:7px 14px;font-size:12px;}
-  .btn.ghost:hover{background:var(--line-soft);color:var(--ink);}
-  .pill-select{appearance:none;-webkit-appearance:none;border:1px solid var(--line);border-radius:20px;padding:8px 34px 8px 14px;font-size:12.5px;font-weight:600;font-family:var(--sans);color:var(--ink);cursor:pointer;
-    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2356657a' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") no-repeat right 14px center;}
-  .pill-select:focus,.pill-input:focus{outline:2px solid var(--blue-soft);border-color:var(--blue);}
-  .pill-input{border:1px solid var(--line);border-radius:20px;padding:8px 14px;font-size:12.5px;font-family:var(--sans);color:var(--ink);min-width:220px;}
-  .field{display:flex;flex-direction:column;gap:5px;}
-  .field label{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);}
-  .field select,.field input{border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:13px;font-family:var(--sans);background:#fff;color:var(--ink);min-width:170px;}
-
-  /* upload */
-  .load-row{display:flex;gap:16px;align-items:stretch;flex-wrap:wrap;}
-  .load-col{flex:1;min-width:220px;display:flex;flex-direction:column;}
-  .dz-label{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px;}
-  .dropzone{flex:1;border:1.5px dashed #c3cedd;border-radius:10px;background:#f9fbfd;display:flex;align-items:center;justify-content:center;text-align:center;min-height:84px;cursor:pointer;padding:12px;color:var(--ink-soft);transition:border-color .15s,background .15s;}
-  .dropzone:hover,.dropzone.dragover{border-color:var(--blue);background:var(--blue-soft);}
-  .dropzone.has-file{border-style:solid;border-color:#b7e2c6;background:var(--green-soft);color:var(--green);}
-  .dropzone.has-file .dz-text{font-weight:600;font-family:var(--mono);font-size:12px;word-break:break-all;}
+  .load-row{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;}
+  .load-col{flex:1;min-width:220px;}
+  .dz-label{font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;}
+  .dropzone{border:2px dashed #b9c4d0;border-radius:6px;background:#fafbfc;min-height:50px;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px 12px;cursor:pointer;color:var(--ink-soft);font-size:13px;transition:border-color .15s,background .15s;}
+  .dropzone:hover,.dropzone.dragover{border-color:var(--navy);background:#eef3f9;}
+  .dropzone.has-file{border-color:var(--dash);background:var(--green-soft);color:var(--ink);font-weight:600;}
   .dropzone input[type=file]{display:none;}
-  .run-col{display:flex;align-items:flex-end;}
-  .run-col .btn{min-height:84px;min-width:190px;border-radius:10px;font-size:14px;}
-  details.advanced{margin-top:16px;}
-  details.advanced summary{font-size:12.5px;font-weight:700;color:var(--blue);cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:4px;}
+  .dz-text{word-break:break-all;}
+  .btn{border:none;border-radius:6px;background:var(--navy);color:#fff;font-family:var(--sans);font-size:14px;font-weight:700;padding:13px 22px;cursor:pointer;}
+  .btn:hover{background:var(--navy-dark);}
+  .btn:disabled{background:#9fb1c4;cursor:not-allowed;}
+  .btn-outline{background:#fff;color:var(--navy);border:1px solid var(--navy);border-radius:6px;font-family:var(--sans);font-size:13.5px;font-weight:600;padding:9px 16px;cursor:pointer;}
+  .btn-outline:hover{background:#eef3f9;}
+
+  details.advanced{margin-top:12px;}
+  details.advanced summary{font-size:12.5px;color:var(--navy);cursor:pointer;list-style:none;display:inline-flex;gap:6px;align-items:center;}
   details.advanced summary::-webkit-details-marker{display:none;}
-  details.advanced summary::after{content:"▾";font-size:10px;transition:transform .15s;}
-  details.advanced[open] summary::after{transform:rotate(180deg);}
-  .adv-body{padding:16px 0 4px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;}
-  .status-line{margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);white-space:pre-wrap;}
+  details.advanced summary::after{content:"▾";font-size:9px;}
+  .adv-body{padding:14px 0 2px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-faint);}
+  .field select,.field input{border:1px solid var(--line);border-radius:5px;padding:7px 9px;font-size:13px;font-family:var(--sans);min-width:160px;background:#fff;color:var(--ink);}
+  .status-line{margin-top:12px;font-size:12.5px;color:var(--ink-soft);}
   .status-line.err{color:var(--red);}
-  .status-line.ok{color:var(--green);}
 
-  /* filter bar */
-  .filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 16px;}
-  .filter-bar .hint{font-size:12px;color:var(--ink-faint);flex:1;min-width:200px;}
-  .filter-bar .hint b{color:var(--ink-soft);}
+  .cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px;margin-bottom:18px;}
+  .card{background:#fff;border-radius:8px;box-shadow:var(--shadow);border-left:4px solid var(--navy);padding:16px 20px;min-width:0;}
+  .card.green{border-left-color:var(--green);}
+  .card.purple{border-left-color:var(--purple);}
+  .card.red{border-left-color:var(--red);}
+  .card.amber{border-left-color:var(--amber);}
+  .card .lbl{font-size:12px;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-soft);}
+  .card .val{font-size:23px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums;}
+  .card .net{font-size:12px;color:var(--ink-soft);margin-top:4px;min-height:16px;}
 
-  /* stats */
-  .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:18px;}
-  .stat{background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:16px 18px;min-width:0;}
-  .stat .card-ico{margin-bottom:10px;}
-  .stat .lbl{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-soft);}
-  .stat .val{font-size:26px;font-weight:800;letter-spacing:-.5px;color:var(--ink);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
-  .stat .val.red{color:var(--red);}
-  .stat .foot{font-size:11.5px;color:var(--ink-faint);}
+  .charts{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;margin-bottom:18px;}
+  .chart-panel h3{margin:0 0 10px;font-size:14px;font-weight:700;}
+  .chart-box{position:relative;}
+  .chart-box svg{display:block;width:100%;height:auto;overflow:visible;}
+  .legend{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .legend i{width:11px;height:11px;border-radius:2px;display:inline-block;}
+  .tip{position:absolute;pointer-events:none;background:#1d2733;color:#fff;font-size:12px;padding:6px 9px;border-radius:5px;white-space:nowrap;opacity:0;transition:opacity .08s;transform:translate(-50%,-110%);z-index:5;}
+  .tip b{font-weight:700;}
+  .arc,.bar{cursor:default;transition:opacity .1s;}
+  .dim .arc:not(.hot),.dim .bar:not(.hot){opacity:.35;}
 
-  /* two-pane report */
-  .report{display:grid;grid-template-columns:340px minmax(0,1fr);gap:18px;align-items:start;}
-  .holder-list{display:flex;flex-direction:column;gap:8px;max-height:640px;overflow:auto;padding-right:4px;}
-  .holder-tile{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--red-soft);border:1px solid transparent;border-radius:8px;padding:10px 12px;cursor:pointer;text-align:left;width:100%;font-family:var(--sans);}
-  .holder-tile:hover{border-color:#f3b4b4;}
-  .holder-tile.active{border-color:var(--red);box-shadow:0 0 0 2px #f9cfcf;}
-  .holder-tile .nm{font-size:12.5px;font-weight:700;color:var(--red-deep);}
-  .holder-tile .ct{font-size:11px;color:var(--ink-soft);}
-  .holder-tile .amt{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--red-deep);white-space:nowrap;}
-  .all-tile{background:#fff;border:1px solid var(--line);}
-  .all-tile .nm{color:var(--ink);}
-  .all-tile .amt{color:var(--ink);}
-  .all-tile.active{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-soft);}
+  .tab-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+  .tab{background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px 16px;font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;}
+  .tab:hover{color:var(--ink);}
+  .tab.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .tab-row .spacer{flex:1;}
 
-  .group{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:16px;}
-  .group:last-child{margin-bottom:0;}
-  .group-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:#fbfcfe;border-bottom:1px solid var(--line);flex-wrap:wrap;}
-  .group-head .nm{font-weight:700;font-size:13.5px;}
-  .group-head .meta{font-size:12px;color:var(--ink-faint);}
-  .group-head .amt{font-family:var(--mono);font-weight:600;color:var(--red);}
-  .table-wrap{overflow:auto;}
-  table{width:100%;border-collapse:collapse;font-size:12.5px;}
-  th{text-align:left;background:var(--navy);color:#fff;padding:9px 12px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;position:sticky;top:0;z-index:1;}
-  td{padding:9px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle;font-variant-numeric:tabular-nums;}
-  tr:last-child td{border-bottom:none;}
-  tbody tr:hover td{background:#f8fafd;}
-  .num{text-align:right;font-family:var(--mono);white-space:nowrap;}
-  td.num.red{color:var(--red);font-weight:600;}
-  td.date{white-space:nowrap;color:var(--ink-soft);}
-  td.ref{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);white-space:nowrap;}
-  .scroll{max-height:640px;overflow:auto;}
-  .empty-state{padding:34px 10px;text-align:center;color:var(--ink-faint);}
-  .done-state{padding:44px 10px;text-align:center;color:var(--green);font-weight:700;}
-  .mini{font-size:12px;color:var(--ink-faint);}
-  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap;}
-  .no-results{text-align:center;padding:50px 20px;color:var(--ink-soft);}
-  .no-results h3{margin:0 0 6px;color:var(--ink);font-size:15px;}
-  .no-results p{margin:0 0 16px;}
-  td[contenteditable=true]{outline:none;}
-  td[contenteditable=true]:focus{background:#fff6d8;}
-  .row-del{color:var(--red);cursor:pointer;text-align:center;}
-  .detail-tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;}
-  .detail-tabs button{background:#fff;border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;}
-  .detail-tabs button.active{background:var(--navy);border-color:var(--navy);color:#fff;}
-  .dpanel{display:none;}
-  .dpanel.active{display:block;}
-  footer{text-align:center;font-size:12px;color:var(--ink-faint);padding:0 24px 26px;}
+  .table-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+  .table-head h2{font-size:15px;}
+  .table-head .sub{margin:2px 0 0;}
+  .table-tools{display:flex;gap:8px;flex-wrap:wrap;}
+  .table-tools select,.table-tools input{border:1px solid var(--line);border-radius:5px;padding:8px 10px;font-size:13px;font-family:var(--sans);color:var(--ink);background:#fff;}
+  .table-tools input{min-width:260px;}
+  .table-wrap{overflow:auto;max-height:640px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-size:11.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-soft);padding:9px 10px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:1;white-space:nowrap;cursor:pointer;user-select:none;}
+  th:hover{color:var(--ink);}
+  th .arrow{font-size:9px;margin-left:4px;}
+  td{padding:8px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top;font-variant-numeric:tabular-nums;}
+  tbody tr:hover td{background:#f8fafc;}
+  td.nowrap{white-space:nowrap;}
+  td.amt{white-space:nowrap;font-weight:600;}
+  td.amt.neg{color:var(--red);}
+  td.amt.pos{color:var(--green);}
+  td.ref{white-space:nowrap;color:var(--ink-soft);}
+  td .parts{font-size:12px;color:var(--ink-soft);}
+  .empty-state{padding:30px 10px;text-align:center;color:var(--ink-faint);}
+  .count-note{font-size:12px;color:var(--ink-faint);margin-top:8px;}
 
-  @media (max-width:1000px){
-    .report{grid-template-columns:minmax(0,1fr);}
-    .holder-list{max-height:none;flex-direction:row;overflow-x:auto;padding-bottom:4px;}
-    .holder-tile{width:auto;flex:none;min-width:200px;}
+  @media (max-width:1100px){
+    .cards{grid-template-columns:repeat(3,minmax(0,1fr));}
+    .charts{grid-template-columns:minmax(0,1fr);}
   }
-  @media (max-width:700px){
-    .hdr{padding:14px 16px;}
-    .hdr .hide-sm{display:none;}
-    .tabs{padding:0 12px;}
+  @media (max-width:640px){
     main{padding:16px;}
-    .stats{grid-template-columns:minmax(0,1fr);gap:10px;}
-    .pill-select,.pill-input{width:100%;min-width:0;}
-    .run-col,.run-col .btn{width:100%;}
-    .card{padding:14px;}
-  }
-  @media print{
-    .hdr .hdr-btn,.tabs,.filter-bar .btn,#loadView,#detailsView,footer,.holder-list{display:none !important;}
-    .report{grid-template-columns:minmax(0,1fr);}
-    .scroll{max-height:none;overflow:visible;}
-    th{background:#34557f !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .banner{padding:18px;}
+    .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+    .panel{padding:16px;}
+    .load-row .btn{width:100%;}
+    .table-tools,.table-tools input,.table-tools select{width:100%;min-width:0;}
+    .tab-row .spacer{display:none;}
   }
 </style>
 </head>
 <body>
-
-<header class="hdr">
-  <div class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></div>
-  <div class="brand">
-    <h1>MarineTeknik</h1>
-    <div class="sub">Card Reconciliation</div>
-    <div class="upd" id="hdrUpdated">Load a statement and ledger to begin</div>
-  </div>
-  <span class="spacer"></span>
-  <button class="hdr-btn hide-sm" id="hdrImport"><svg class="i" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>Import</button>
-  <button class="hdr-btn" id="hdrClear">Clear</button>
-</header>
-
-<nav class="tabs">
-  <button class="tab active" data-view="loadView">Load Files</button>
-  <button class="tab" data-view="reportView">Not Submitted <span class="count" id="tabCount"></span></button>
-  <button class="tab" data-view="detailsView">Reconciliation Details</button>
-</nav>
-
 <main>
-  <!-- ================= LOAD ================= -->
-  <section class="view active" id="loadView">
-    <div class="card top-blue">
-      <div class="card-head">
+  <div class="banner">
+    <h1>Credit Card Reconciliation Tool</h1>
+    <p>Upload any month's PDF statement (Elan / Corporate Payment Systems format) and Excel ledger export to reconcile them — everything runs in your browser, nothing is uploaded anywhere.</p>
+  </div>
+
+  <div class="panel">
+    <h2>1. Load this month's files</h2>
+    <p class="sub">Both files stay local to your browser tab. Re-open this file and re-upload each month.</p>
+    <div class="load-row">
+      <div class="load-col">
+        <div class="dz-label">PDF Statement</div>
+        <div class="dropzone" id="pdfDropzone">
+          <div class="dz-text" id="pdfDzText">Click or drop the statement PDF here</div>
+          <input type="file" id="pdfFile" accept="application/pdf">
+        </div>
+      </div>
+      <div class="load-col">
+        <div class="dz-label">Excel Ledger Export</div>
+        <div class="dropzone" id="xlsxDropzone">
+          <div class="dz-text" id="xlsxDzText">Click or drop the ledger .xlsx here</div>
+          <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv">
+        </div>
+      </div>
+      <button class="btn" id="runMatchBtn" disabled>Run Reconciliation</button>
+    </div>
+
+    <details class="advanced">
+      <summary>Advanced options</summary>
+      <div class="adv-body">
+        <div class="field">
+          <label>PDF: skip lines containing</label>
+          <input type="text" id="pdfSkipWords" value="Total,Subtotal,Page,Balance,Statement,Continued" style="min-width:300px;">
+        </div>
+        <div class="field"><label>Ledger sheet</label><select id="sheetSelect" disabled><option>—</option></select></div>
+        <div class="field"><label>Date column</label><select id="mapDate"><option value="">— auto —</option></select></div>
+        <div class="field"><label>Amount column</label><select id="mapAmount"><option value="">— auto —</option></select></div>
+        <div class="field"><label>Description column</label><select id="mapDesc"><option value="">— auto —</option></select></div>
+        <div class="field"><label>Reference column</label><select id="mapRef"><option value="">— auto —</option></select></div>
+        <div class="field">
+          <label>Ledger amount sign</label>
+          <select id="ledgerSign">
+            <option value="auto">Auto-detect</option>
+            <option value="same">Same as statement</option>
+            <option value="flip">Reversed (charges negative)</option>
+          </select>
+        </div>
+        <div class="field"><label>Posting date tolerance (days)</label><input type="number" id="dateTolerance" value="0" min="0" max="31" style="min-width:90px;"></div>
+      </div>
+    </details>
+    <div class="status-line" id="runStatus"></div>
+  </div>
+
+  <div id="resultsWrap" style="display:none;">
+    <div class="cards">
+      <div class="card"><div class="lbl">Statement transactions</div><div class="val" id="cStmt">0</div><div class="net"></div></div>
+      <div class="card green"><div class="lbl">Matched 1:1</div><div class="val" id="cMatched">0</div><div class="net"></div></div>
+      <div class="card purple"><div class="lbl">Matched (split entries)</div><div class="val" id="cSplit">0</div><div class="net"></div></div>
+      <div class="card red"><div class="lbl">Missing from Excel</div><div class="val" id="cMissing">0</div><div class="net" id="cMissingNet"></div></div>
+      <div class="card amber"><div class="lbl">Extra in Excel</div><div class="val" id="cExtra">0</div><div class="net" id="cExtraNet"></div></div>
+    </div>
+
+    <div class="charts">
+      <div class="panel chart-panel">
+        <h3>Transaction Match Status</h3>
+        <div class="chart-box" id="donutBox"></div>
+        <div class="legend" id="donutLegend"></div>
+      </div>
+      <div class="panel chart-panel">
+        <h3>Dollar Impact</h3>
+        <div class="chart-box" id="barBox"></div>
+      </div>
+    </div>
+
+    <div class="tab-row">
+      <button class="tab active" data-tab="missing">Missing from Excel (<span id="tMissing">0</span>)</button>
+      <button class="tab" data-tab="split">Split Matches (<span id="tSplit">0</span>)</button>
+      <button class="tab" data-tab="extra">Extra in Excel (<span id="tExtra">0</span>)</button>
+      <button class="tab" data-tab="matched">Matched (<span id="tMatched">0</span>)</button>
+      <span class="spacer"></span>
+      <button class="btn-outline" id="downloadReport">⬇ Download Excel Report</button>
+    </div>
+
+    <div class="panel">
+      <div class="table-head">
         <div>
-          <h2 class="card-title">Load this month's files</h2>
-          <p class="card-sub">The Elan statement PDF and the Business Central ledger export (.xlsx). Both stay in your browser.</p>
+          <h2 id="tableTitle">Missing from Excel</h2>
+          <p class="sub" id="tableSub"></p>
         </div>
-        <div class="card-ico blue"><svg class="i" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></div>
-      </div>
-
-      <div class="load-row">
-        <div class="load-col">
-          <div class="dz-label">PDF Statement</div>
-          <div class="dropzone" id="pdfDropzone">
-            <div class="dz-text" id="pdfDzText">Click or drop the statement PDF here</div>
-            <input type="file" id="pdfFile" accept="application/pdf">
-          </div>
-        </div>
-        <div class="load-col">
-          <div class="dz-label">Excel Ledger Export</div>
-          <div class="dropzone" id="xlsxDropzone">
-            <div class="dz-text" id="xlsxDzText">Click or drop the ledger .xlsx here</div>
-            <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv">
-          </div>
-        </div>
-        <div class="run-col">
-          <button class="btn" id="runMatchBtn" disabled>Run Reconciliation</button>
+        <div class="table-tools">
+          <select id="holderFilter" aria-label="Cardholder"><option value="">All cardholders</option></select>
+          <input type="search" id="searchBox" placeholder="Search cardholder, description, reference…" aria-label="Search">
         </div>
       </div>
-
-      <details class="advanced">
-        <summary>Advanced options</summary>
-        <div class="adv-body">
-          <div class="field">
-            <label>PDF: skip lines containing</label>
-            <input type="text" id="pdfSkipWords" value="Total,Subtotal,Page,Balance,Statement,Continued" style="min-width:300px;">
-          </div>
-          <div class="field"><label>Ledger sheet</label><select id="sheetSelect" disabled><option>—</option></select></div>
-          <div class="field"><label>Date column</label><select id="mapDate"><option value="">— auto —</option></select></div>
-          <div class="field"><label>Amount column</label><select id="mapAmount"><option value="">— auto —</option></select></div>
-          <div class="field"><label>Description column</label><select id="mapDesc"><option value="">— auto —</option></select></div>
-          <div class="field"><label>Reference column</label><select id="mapRef"><option value="">— auto —</option></select></div>
-          <div class="field">
-            <label>Ledger amount sign</label>
-            <select id="ledgerSign">
-              <option value="auto">Auto-detect</option>
-              <option value="same">Same as statement</option>
-              <option value="flip">Reversed (charges negative)</option>
-            </select>
-          </div>
-          <div class="field"><label>Date tolerance (days)</label><input type="number" id="dateTolerance" value="3" min="0" max="31" style="min-width:90px;"></div>
-        </div>
-      </details>
-
-      <div class="status-line" id="runStatus"></div>
+      <div class="table-wrap">
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="count-note" id="tableCount"></div>
     </div>
-  </section>
-
-  <!-- ================= NOT SUBMITTED ================= -->
-  <section class="view" id="reportView">
-    <div id="emptyState" class="card no-results">
-      <h3>No results yet</h3>
-      <p>Load the statement and ledger, then run the reconciliation.</p>
-      <button class="btn" data-goto="loadView">Load files</button>
-    </div>
-
-    <div id="resultsWrap" style="display:none;">
-      <div class="card filter-bar">
-        <select class="pill-select" id="holderFilter" aria-label="Cardholder"><option value="">All Cardholders</option></select>
-        <input type="search" class="pill-input" id="searchFilter" placeholder="Search description or reference…" aria-label="Search">
-        <span class="hint">Shows only charges on the statement that are <b>not found in the Business Central ledger</b>.</span>
-        <button class="btn ghost" id="printReport">Print</button>
-        <button class="btn orange" id="exportMissing">Export CSV</button>
-      </div>
-
-      <div class="stats">
-        <div class="stat">
-          <div class="card-ico red"><svg class="i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 20a6.5 6.5 0 0 0-3-5.5"/></svg></div>
-          <div class="lbl">Cardholders not submitted</div>
-          <div class="val" id="statHolders">0</div>
-          <div class="foot" id="statHoldersFoot">—</div>
-        </div>
-        <div class="stat">
-          <div class="card-ico orange"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h3"/></svg></div>
-          <div class="lbl">Transactions not submitted</div>
-          <div class="val" id="statCount">0</div>
-          <div class="foot" id="statCountFoot">—</div>
-        </div>
-        <div class="stat">
-          <div class="card-ico red"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v18M16.5 7.5c0-1.9-2-3-4.5-3s-4.5 1.1-4.5 3 2 2.7 4.5 3.2 4.5 1.3 4.5 3.3-2 3.2-4.5 3.2-4.5-1.2-4.5-3"/></svg></div>
-          <div class="lbl">Amount not submitted</div>
-          <div class="val red" id="statAmount">$0.00</div>
-          <div class="foot" id="statAmountFoot">—</div>
-        </div>
-      </div>
-
-      <div class="report">
-        <div class="card top-red">
-          <div class="card-head">
-            <div>
-              <h2 class="card-title">Cardholders</h2>
-              <p class="card-sub">Not yet submitted, by amount</p>
-            </div>
-            <div class="card-ico red"><svg class="i" viewBox="0 0 24 24"><path d="M12 8v5"/><path d="M12 16.5h.01"/></svg></div>
-          </div>
-          <div class="holder-list" id="holderList"></div>
-        </div>
-
-        <div class="card top-orange">
-          <div class="card-head">
-            <div>
-              <h2 class="card-title" id="txTitle">Transactions not submitted</h2>
-              <p class="card-sub" id="txSub"></p>
-            </div>
-            <div class="card-ico orange"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
-          </div>
-          <div class="scroll" id="txGroups"></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= DETAILS ================= -->
-  <section class="view" id="detailsView">
-    <div class="card top-blue">
-      <div class="detail-tabs">
-        <button class="active" data-dpanel="dMatched">Submitted (matched)</button>
-        <button data-dpanel="dLedger">In ledger, not on statement</button>
-        <button data-dpanel="dEdit">Edit statement rows</button>
-      </div>
-
-      <div class="dpanel active" id="dMatched">
-        <div class="toolbar"><span class="mini" id="matchedCount"></span><button class="btn ghost" id="exportMatched">Export CSV</button></div>
-        <div class="table-wrap scroll"><table>
-          <thead><tr><th>Statement date</th><th>Statement description</th><th class="num">Statement amt</th><th>Ledger date</th><th>Ledger description</th><th>Reference</th><th class="num">Ledger amt</th></tr></thead>
-          <tbody id="matchedBody"></tbody>
-        </table></div>
-      </div>
-
-      <div class="dpanel" id="dLedger">
-        <div class="toolbar"><span class="mini" id="unmatchedBCCount"></span><button class="btn ghost" id="exportUnmatchedBC">Export CSV</button></div>
-        <div class="table-wrap scroll"><table>
-          <thead><tr><th>Date</th><th>Description</th><th>Reference</th><th class="num">Amount</th></tr></thead>
-          <tbody id="unmatchedBCBody"></tbody>
-        </table></div>
-      </div>
-
-      <div class="dpanel" id="dEdit">
-        <div class="toolbar">
-          <span class="mini" id="pdfCount">0 rows extracted</span>
-          <div style="display:flex;gap:6px;">
-            <button class="btn ghost" id="pdfAddRow">+ Add row</button>
-            <button class="btn ghost" id="rerunBtn">Re-run reconciliation</button>
-          </div>
-        </div>
-        <div class="table-wrap scroll">
-          <table>
-            <thead><tr><th style="width:100px;">Date</th><th>Description</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr></thead>
-            <tbody id="pdfTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </section>
+  </div>
 </main>
-
-<footer>Runs entirely in your browser (PDF.js + SheetJS) · no data leaves this tab.</footer>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -716,53 +561,13 @@ async function extractPdf(){
   pdfRows = extracted;
 }
 
-function renderPdfTable(){
-  const body = document.getElementById('pdfTableBody');
-  body.innerHTML = '';
-  pdfRows.forEach((r, idx)=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td contenteditable="true" data-field="date" data-idx="${idx}">${fmtDate(r.date)}</td>
-      <td contenteditable="true" data-field="desc" data-idx="${idx}">${escapeHtml(r.desc)}</td>
-      <td contenteditable="true" data-field="amount" class="num" data-idx="${idx}">${fmtAmt(r.amount)}</td>
-      <td class="row-del" data-idx="${idx}">✕</td>
-    `;
-    body.appendChild(tr);
-  });
-  document.getElementById('pdfCount').textContent = `${pdfRows.length} rows extracted`;
-  bindPdfTableEvents();
-}
-
-function bindPdfTableEvents(){
-  document.querySelectorAll('#pdfTableBody [contenteditable]').forEach(cell=>{
-    cell.addEventListener('blur', e=>{
-      const idx = +e.target.dataset.idx;
-      const field = e.target.dataset.field;
-      const val = e.target.textContent.trim();
-      if(field === 'date') pdfRows[idx].date = parseDateFlexible(val) || pdfRows[idx].date;
-      if(field === 'desc') pdfRows[idx].desc = val;
-      if(field === 'amount') pdfRows[idx].amount = parseAmount(val);
-    });
-  });
-  document.querySelectorAll('#pdfTableBody .row-del').forEach(btn=>{
-    btn.addEventListener('click', e=>{
-      const idx = +e.target.dataset.idx;
-      pdfRows.splice(idx,1);
-      renderPdfTable();
-    });
-  });
-}
-
-document.getElementById('pdfAddRow').addEventListener('click', ()=>{
-  pdfRows.push({date: new Date(), desc:'', amount:0});
-  renderPdfTable();
-});
-
 function runMatch(){
   const tol = Math.max(0, parseInt(document.getElementById('dateTolerance').value,10) || 0);
   const dayDiff = (a,b)=> Math.round(Math.abs(a - b) / 86400000);
 
-  // Collect every same-amount pair within the date window, then pair up best-first:
+  // Match on amount + posting date: the statement's Post Date against the ledger's
+  // Posting Date (exact by default; Advanced options can allow a few days either way).
+  // Collect every same-amount pair within that window, then pair up best-first:
   // same cardholder before different cardholder, then closest date.
   const candidates = [];
   pdfRows.forEach((sRow, si)=>{
@@ -770,7 +575,6 @@ function runMatch(){
     bcRows.forEach((bRow, bi)=>{
       if(Math.abs(sRow.amount - bRow.amount) > 0.005) return;
       let dd = dayDiff(sRow.date, bRow.date);
-      if(sRow.tranDate) dd = Math.min(dd, dayDiff(sRow.tranDate, bRow.date));
       if(dd > tol) return;
       const sameHolder = holder && bRow.desc.toUpperCase().startsWith(holder) ? 0 : 1;
       candidates.push({si, bi, dd, sameHolder});
@@ -798,7 +602,6 @@ function runMatch(){
       const near = leftB.filter(bi=>{
         if(bUsed.has(bi)) return false;
         let dd = dayDiff(sRow.date, bcRows[bi].date);
-        if(sRow.tranDate) dd = Math.min(dd, dayDiff(sRow.tranDate, bcRows[bi].date));
         return dd <= tol;
       });
       for(let x=0; x<near.length; x++){
@@ -806,7 +609,7 @@ function runMatch(){
           const a = bcRows[near[x]], b = bcRows[near[y]];
           if(Math.abs(a.amount + b.amount - sRow.amount) > 0.005) continue;
           sUsed.add(si); bUsed.add(near[x]); bUsed.add(near[y]);
-          matched.push({statement: sRow, bc: {
+          matched.push({statement: sRow, split: true, parts: [a, b], bc: {
             date: a.date,
             desc: `${a.desc} + ${b.desc}`,
             ref: `${a.ref} + ${b.ref}`,
@@ -823,176 +626,335 @@ function runMatch(){
 }
 
 const NO_HOLDER = '(No cardholder)';
+const UNASSIGNED = '(Unassigned)';
+const COLORS = {matched:'#1e8e5a', split:'#6a4fb8', missing:'#c0392b', extra:'#d99a1c'};
 
-let recon = null;        // {matched, unmatchedStatement, unmatchedBC}
-let outstanding = [];    // cardholders with charges not in the ledger, largest amount first
-let holderCount = 0;
+let data = null;       // {missing, split, extra, matched} display rows
+let activeTab = 'missing';
+const sortState = {
+  missing:{key:'amount', dir:1},
+  split:{key:'date', dir:1},
+  extra:{key:'amount', dir:1},
+  matched:{key:'date', dir:1}
+};
 const filters = {holder:'', q:''};
 
 function holderOf(r){ return r.cardholder || NO_HOLDER; }
-function money(n){ return (n<0?'-':'') + '$' + fmtAmt(Math.abs(n)); }
-function plural(n, w){ return `${n} ${w}${n===1?'':'s'}`; }
 function descOnly(r){
   const p = holderOf(r) + ' — ';
   return r.desc.startsWith(p) ? r.desc.slice(p.length) : r.desc;
 }
+// Ledger descriptions start with the cardholder name ("MAIT ROHTLA Taxi ...").
+function ledgerHolder(desc, names){
+  const d = String(desc||'').toUpperCase();
+  let best = '';
+  names.forEach(n=>{ if(n.length > best.length && d.startsWith(n.toUpperCase())) best = n; });
+  return best || UNASSIGNED;
+}
+function isoDate(d){
+  if(!d) return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+// Amounts are shown the way the ledger books them: charges negative, credits positive.
+function money(n){ return (n<0?'-':'') + '$' + fmtAmt(Math.abs(n)); }
 
 function runMatchAndRender(matched, unmatchedStatement, unmatchedBC){
-  recon = {matched, unmatchedStatement, unmatchedBC};
-  holderCount = new Set(pdfRows.map(holderOf)).size;
-
-  const by = new Map();
-  unmatchedStatement.forEach(r=>{
-    const n = holderOf(r);
-    if(!by.has(n)) by.set(n, {name:n, rows:[], amount:0});
-    const h = by.get(n); h.rows.push(r); h.amount += r.amount;
+  const names = [...new Set(pdfRows.map(r=>r.cardholder).filter(Boolean))];
+  const stmtRow = r=>({
+    holder: holderOf(r), date: r.date, tranDate: r.tranDate, ref: r.ref || '',
+    desc: descOnly(r), amount: -r.amount, credit: r.amount < 0
   });
-  outstanding = [...by.values()].sort((a,b)=> b.amount - a.amount || a.name.localeCompare(b.name));
-  outstanding.forEach(h=> h.rows.sort((a,b)=> a.date - b.date));
+  data = {
+    missing: unmatchedStatement.map(stmtRow),
+    split: matched.filter(m=>m.split).map(m=>({
+      ...stmtRow(m.statement),
+      parts: m.parts.map(p=>({ref:p.ref, desc:p.desc, date:p.date, amount:-p.amount}))
+    })),
+    extra: unmatchedBC.map(r=>({
+      holder: ledgerHolder(r.desc, names), date: r.date, ref: r.ref, desc: r.desc, amount: -r.amount
+    })),
+    matched: matched.filter(m=>!m.split).map(m=>({
+      ...stmtRow(m.statement), ledgerRef: m.bc.ref, ledgerDate: m.bc.date, ledgerDesc: m.bc.desc
+    }))
+  };
 
+  const sum = rows=> rows.reduce((s,r)=>s+r.amount,0);
+  document.getElementById('cStmt').textContent = pdfRows.length;
+  document.getElementById('cMatched').textContent = data.matched.length;
+  document.getElementById('cSplit').textContent = data.split.length;
+  document.getElementById('cMissing').textContent = data.missing.length;
+  document.getElementById('cMissingNet').textContent = money(sum(data.missing)) + ' net';
+  document.getElementById('cExtra').textContent = data.extra.length;
+  document.getElementById('cExtraNet').textContent = money(sum(data.extra)) + ' net';
+  ['Missing','Split','Extra','Matched'].forEach(k=>{
+    document.getElementById('t'+k).textContent = data[k.toLowerCase()].length;
+  });
+
+  const holders = new Set();
+  Object.values(data).forEach(rows=>rows.forEach(r=>holders.add(r.holder)));
   const sel = document.getElementById('holderFilter');
   const keep = sel.value;
-  sel.innerHTML = '<option value="">All Cardholders</option>' +
-    outstanding.map(h=>h.name).sort().map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-  sel.value = outstanding.some(h=>h.name===keep) ? keep : '';
+  sel.innerHTML = '<option value="">All cardholders</option>' +
+    [...holders].sort().map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  sel.value = holders.has(keep) ? keep : '';
   filters.holder = sel.value;
 
-  document.getElementById('tabCount').textContent = outstanding.length || '';
-  const now = new Date();
-  document.getElementById('hdrUpdated').textContent =
-    (statementDate ? `Statement ${fmtDate(statementDate)} · ` : '') +
-    `Last run ${now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}, ${now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
-
-  renderPdfTable();
-  renderReport();
-  renderDetails();
-  document.getElementById('emptyState').style.display = 'none';
+  renderDonut();
+  renderBars(sum(data.missing), sum(data.extra));
+  renderTable();
   document.getElementById('resultsWrap').style.display = 'block';
 }
 
-function matchesSearch(r){
-  if(!filters.q) return true;
+/* ---------------- charts ---------------- */
+
+function attachTip(box, marks, text){
+  let tip = box.querySelector('.tip');
+  if(!tip){ tip = document.createElement('div'); tip.className = 'tip'; box.appendChild(tip); }
+  const svg = box.querySelector('svg');
+  marks.forEach(el=>{
+    el.addEventListener('mousemove', e=>{
+      const r = box.getBoundingClientRect();
+      tip.innerHTML = text(el);
+      tip.style.left = (e.clientX - r.left) + 'px';
+      tip.style.top = (e.clientY - r.top - 8) + 'px';
+      tip.style.opacity = 1;
+      svg.classList.add('dim'); el.classList.add('hot');
+    });
+    el.addEventListener('mouseleave', ()=>{
+      tip.style.opacity = 0; svg.classList.remove('dim'); el.classList.remove('hot');
+    });
+  });
+}
+
+function renderDonut(){
+  const segs = [
+    {key:'matched', label:'Matched 1:1', n:data.matched.length},
+    {key:'split',   label:'Matched (split)', n:data.split.length},
+    {key:'missing', label:'Missing from Excel', n:data.missing.length},
+    {key:'extra',   label:'Extra in Excel', n:data.extra.length}
+  ];
+  const total = segs.reduce((s,x)=>s+x.n,0) || 1;
+  const cx = 160, cy = 120, R = 112, r = 68;
+  let a0 = -Math.PI/2;
+  const pt = (rad, a)=> [cx + rad*Math.cos(a), cy + rad*Math.sin(a)];
+  const paths = segs.filter(s=>s.n>0).map(s=>{
+    const sweep = s.n/total * Math.PI*2;
+    let a1 = a0 + sweep;
+    if(sweep >= Math.PI*2 - 1e-6) a1 = a0 + Math.PI*2 - 1e-4;
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    const [x0,y0] = pt(R,a0), [x1,y1] = pt(R,a1), [x2,y2] = pt(r,a1), [x3,y3] = pt(r,a0);
+    const d = `M${x0},${y0} A${R},${R} 0 ${large} 1 ${x1},${y1} L${x2},${y2} A${r},${r} 0 ${large} 0 ${x3},${y3} Z`;
+    a0 = a1;
+    return `<path class="arc" d="${d}" fill="${COLORS[s.key]}" stroke="#fff" stroke-width="2" data-label="${s.label}" data-n="${s.n}"></path>`;
+  }).join('');
+  const box = document.getElementById('donutBox');
+  box.innerHTML = `<svg viewBox="0 0 320 240" style="max-width:360px;margin:0 auto;" role="img" aria-label="Transaction match status">
+    ${paths}
+    <text x="${cx}" y="${cy-2}" text-anchor="middle" font-size="26" font-weight="700" fill="#1d2733">${total}</text>
+    <text x="${cx}" y="${cy+18}" text-anchor="middle" font-size="11" fill="#56626f">transactions</text>
+  </svg>`;
+  attachTip(box, box.querySelectorAll('.arc'), el=>
+    `<b>${el.dataset.label}</b>: ${el.dataset.n} (${Math.round(el.dataset.n/total*100)}%)`);
+  document.getElementById('donutLegend').innerHTML = segs.map(s=>
+    `<span><i style="background:${COLORS[s.key]}"></i>${s.label} · ${s.n}</span>`).join('');
+}
+
+function niceStep(range){
+  const raw = range / 5;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+  const f = raw / mag;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * mag;
+}
+
+function renderBars(missingNet, extraNet){
+  const bars = [
+    {label:'Missing from Excel ($)', v:missingNet, color:COLORS.missing},
+    {label:'Extra in Excel ($)', v:extraNet, color:COLORS.extra}
+  ];
+  const lo = Math.min(0, ...bars.map(b=>b.v)), hi = Math.max(0, ...bars.map(b=>b.v));
+  const step = niceStep((hi - lo) || 1);
+  const yMin = Math.floor(lo/step)*step, yMax = Math.ceil(hi/step)*step || (yMin === 0 ? step : 0);
+  const W = 420, H = 260, L = 78, Rm = 10, T = 12, B = 34;
+  const y = v => T + (yMax - v) / ((yMax - yMin) || 1) * (H - T - B);
+  const band = (W - L - Rm) / bars.length;
+  let grid = '';
+  for(let v = yMin; v <= yMax + 1e-9; v += step){
+    grid += `<line x1="${L}" x2="${W-Rm}" y1="${y(v)}" y2="${y(v)}" stroke="${Math.abs(v)<1e-9?'#9aa5b1':'#e6eaef'}" stroke-width="1"/>
+      <text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#56626f">${money(v)}</text>`;
+  }
+  const rects = bars.map((b,i)=>{
+    const bw = Math.min(90, band*0.55), x = L + band*i + (band-bw)/2;
+    const top = Math.min(y(0), y(b.v)), h = Math.max(1.5, Math.abs(y(b.v) - y(0)));
+    return `<rect class="bar" x="${x}" y="${top}" width="${bw}" height="${h}" rx="3" fill="${b.color}" data-label="${b.label}" data-v="${b.v}"></rect>
+      <rect x="${L + band*i}" y="${T}" width="${band}" height="${H-T-B}" fill="transparent" class="bar-hit" data-i="${i}"></rect>
+      <text x="${L + band*i + band/2}" y="${H-12}" text-anchor="middle" font-size="12" fill="#56626f">${b.label}</text>`;
+  }).join('');
+  const box = document.getElementById('barBox');
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Dollar impact of unmatched items">${grid}${rects}</svg>`;
+  const realBars = [...box.querySelectorAll('rect.bar')];
+  attachTip(box, realBars, el=> `<b>${el.dataset.label.replace(' ($)','')}</b>: ${money(+el.dataset.v)}`);
+  // Hovering anywhere in a bar's column shows its tooltip (thin bars are hard to hit).
+  box.querySelectorAll('.bar-hit').forEach(hit=>{
+    const bar = realBars[+hit.dataset.i];
+    hit.addEventListener('mousemove', e=> bar.dispatchEvent(new MouseEvent('mousemove', {clientX:e.clientX, clientY:e.clientY})));
+    hit.addEventListener('mouseleave', ()=> bar.dispatchEvent(new MouseEvent('mouseleave')));
+  });
+}
+
+/* ---------------- table ---------------- */
+
+const amtCell = v => `<td class="amt ${v<0?'neg':'pos'}">${money(v)}</td>`;
+const TABLES = {
+  missing: {
+    title:'Missing from Excel',
+    sub:'On the statement, but no ledger entry (or pair of entries) with the same amount and posting date. These need to be booked.',
+    cols:[
+      {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
+      {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
+      {key:'tranDate', label:'Tran Date', cell:r=>`<td class="nowrap">${isoDate(r.tranDate)}</td>`},
+      {key:'ref', label:'Reference Number', cell:r=>`<td class="ref">${escapeHtml(r.ref)}</td>`},
+      {key:'desc', label:'Transaction Description', cell:r=>`<td>${escapeHtml(r.desc)}</td>`},
+      {key:'amount', label:'Amount', cell:r=>amtCell(r.amount)},
+      {key:'credit', label:'Is Credit', cell:r=>`<td>${r.credit?'Yes':'No'}</td>`}
+    ]
+  },
+  split: {
+    title:'Split Matches',
+    sub:'One statement charge that matches two ledger entries added together (e.g. a cost split with an employee deduction).',
+    cols:[
+      {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
+      {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
+      {key:'ref', label:'Reference Number', cell:r=>`<td class="ref">${escapeHtml(r.ref)}</td>`},
+      {key:'desc', label:'Transaction Description', cell:r=>`<td>${escapeHtml(r.desc)}</td>`},
+      {key:'amount', label:'Amount', cell:r=>amtCell(r.amount)},
+      {key:'parts', label:'Ledger Entries', sortVal:r=>r.parts.length, cell:r=>`<td>${r.parts.map(p=>
+        `<div class="parts"><b>${escapeHtml(p.ref)}</b> · ${money(p.amount)} · ${escapeHtml(p.desc)}</div>`).join('')}</td>`}
+    ]
+  },
+  extra: {
+    title:'Extra in Excel',
+    sub:'Booked in the ledger, but not found on this statement. Check the card, the date range, or a possible duplicate posting.',
+    cols:[
+      {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
+      {key:'date', label:'Posting Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
+      {key:'ref', label:'Document No.', cell:r=>`<td class="ref">${escapeHtml(r.ref)}</td>`},
+      {key:'desc', label:'Description', cell:r=>`<td>${escapeHtml(r.desc)}</td>`},
+      {key:'amount', label:'Amount', cell:r=>amtCell(r.amount)}
+    ]
+  },
+  matched: {
+    title:'Matched',
+    sub:'Statement transactions matched one-to-one to a ledger entry.',
+    cols:[
+      {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
+      {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
+      {key:'ref', label:'Reference Number', cell:r=>`<td class="ref">${escapeHtml(r.ref)}</td>`},
+      {key:'desc', label:'Transaction Description', cell:r=>`<td>${escapeHtml(r.desc)}</td>`},
+      {key:'amount', label:'Amount', cell:r=>amtCell(r.amount)},
+      {key:'ledgerRef', label:'Ledger Document No.', cell:r=>`<td class="ref">${escapeHtml(r.ledgerRef)}</td>`},
+      {key:'ledgerDate', label:'Ledger Date', cell:r=>`<td class="nowrap">${isoDate(r.ledgerDate)}</td>`}
+    ]
+  }
+};
+
+function filteredRows(tab){
   const q = filters.q.toLowerCase();
-  return r.desc.toLowerCase().includes(q) || String(r.ref||'').includes(q) || fmtAmt(r.amount).includes(q);
+  return data[tab].filter(r=>{
+    if(filters.holder && r.holder !== filters.holder) return false;
+    if(!q) return true;
+    const hay = [r.holder, r.desc, r.ref, r.ledgerRef, r.ledgerDesc, money(r.amount), fmtAmt(Math.abs(r.amount))]
+      .concat((r.parts||[]).flatMap(p=>[p.ref, p.desc])).join(' ').toLowerCase();
+    return hay.includes(q);
+  });
 }
 
-function visibleGroups(){
-  return outstanding
-    .filter(h=> !filters.holder || h.name === filters.holder)
-    .map(h=>{
-      const rows = h.rows.filter(matchesSearch);
-      return {name:h.name, rows, amount: rows.reduce((s,r)=>s+r.amount,0)};
-    })
-    .filter(h=> h.rows.length);
+function sortedRows(tab){
+  const t = TABLES[tab], s = sortState[tab];
+  const col = t.cols.find(c=>c.key===s.key);
+  const val = col && col.sortVal ? col.sortVal : (r=>r[s.key]);
+  return filteredRows(tab).sort((a,b)=>{
+    let x = val(a), y = val(b);
+    if(x instanceof Date) x = x.getTime();
+    if(y instanceof Date) y = y.getTime();
+    if(typeof x === 'boolean'){ x = +x; y = +y; }
+    const d = typeof x === 'number' ? x - y : String(x||'').localeCompare(String(y||''));
+    return d * s.dir || (a.date - b.date);
+  });
 }
 
-function renderReport(){
-  const groups = visibleGroups();
-  const count = groups.reduce((s,h)=>s+h.rows.length,0);
-  const amount = groups.reduce((s,h)=>s+h.amount,0);
-
-  document.getElementById('statHolders').textContent = filters.holder || filters.q ? groups.length : `${outstanding.length} of ${holderCount}`;
-  document.getElementById('statHoldersFoot').textContent = filters.holder ? filters.holder : (filters.q ? 'matching search' : 'cardholders on the statement');
-  document.getElementById('statCount').textContent = count;
-  document.getElementById('statCountFoot').textContent = 'charges not found in the ledger';
-  document.getElementById('statAmount').textContent = money(amount);
-  document.getElementById('statAmountFoot').textContent = 'filtered view';
-
-  // Cardholder list (ignores search so it stays a stable navigation list).
-  const total = outstanding.reduce((s,h)=>s+h.amount,0);
-  const n = outstanding.reduce((s,h)=>s+h.rows.length,0);
-  const list = document.getElementById('holderList');
-  list.innerHTML = outstanding.length ?
-    `<button class="holder-tile all-tile${filters.holder?'':' active'}" data-name="">
-       <div><div class="nm">All cardholders</div><div class="ct">${plural(n,'charge')}</div></div>
-       <div class="amt">${money(total)}</div></button>` +
-    outstanding.map(h=>`<button class="holder-tile${filters.holder===h.name?' active':''}" data-name="${escapeHtml(h.name)}">
-       <div><div class="nm">${escapeHtml(h.name)}</div><div class="ct">${plural(h.rows.length,'charge')}</div></div>
-       <div class="amt">${money(h.amount)}</div></button>`).join('')
-    : `<div class="done-state">Everyone has submitted.</div>`;
-  list.querySelectorAll('.holder-tile').forEach(b=> b.addEventListener('click', ()=> setHolder(b.dataset.name)));
-
-  document.getElementById('txTitle').textContent = filters.holder ? filters.holder : 'Transactions not submitted';
-  document.getElementById('txSub').textContent = `${plural(count,'charge')} · ${money(amount)}`;
-
-  const box = document.getElementById('txGroups');
-  if(!outstanding.length){
-    box.innerHTML = `<div class="done-state">Every charge on the statement was found in the ledger.</div>`;
-    return;
-  }
-  if(!groups.length){
-    box.innerHTML = `<div class="empty-state">No transactions match these filters.</div>`;
-    return;
-  }
-  box.innerHTML = groups.map(h=>`
-    <div class="group">
-      <div class="group-head">
-        <div><span class="nm">${escapeHtml(h.name)}</span> <span class="meta">· ${plural(h.rows.length,'charge')}</span></div>
-        <span class="amt">${money(h.amount)}</span>
-      </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Post date</th><th>Tran date</th><th>Description</th><th>Reference</th><th class="num">Amount</th></tr></thead>
-        <tbody>${h.rows.map(r=>`<tr>
-          <td class="date">${fmtDate(r.date)}</td>
-          <td class="date">${fmtDate(r.tranDate)}</td>
-          <td>${escapeHtml(descOnly(r))}</td>
-          <td class="ref">${escapeHtml(r.ref||'')}</td>
-          <td class="num red">${fmtAmt(r.amount)}</td></tr>`).join('')}</tbody>
-      </table></div>
-    </div>`).join('');
+function renderTable(){
+  const t = TABLES[activeTab], s = sortState[activeTab];
+  document.getElementById('tableTitle').textContent = t.title;
+  document.getElementById('tableSub').textContent = t.sub;
+  document.getElementById('tableHead').innerHTML = '<tr>' + t.cols.map(c=>
+    `<th data-key="${c.key}">${c.label}<span class="arrow">${s.key===c.key ? (s.dir>0?'▲':'▼') : ''}</span></th>`).join('') + '</tr>';
+  document.querySelectorAll('#tableHead th').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const k = th.dataset.key;
+      sortState[activeTab] = s.key===k ? {key:k, dir:-s.dir} : {key:k, dir:1};
+      renderTable();
+    });
+  });
+  const rows = sortedRows(activeTab);
+  document.getElementById('tableBody').innerHTML = rows.map(r=>'<tr>' + t.cols.map(c=>c.cell(r)).join('') + '</tr>').join('')
+    || `<tr><td colspan="${t.cols.length}" class="empty-state">${data[activeTab].length ? 'No rows match these filters.' : 'Nothing here.'}</td></tr>`;
+  const net = rows.reduce((sum,r)=>sum+r.amount,0);
+  document.getElementById('tableCount').textContent =
+    `${rows.length} of ${data[activeTab].length} row${data[activeTab].length===1?'':'s'} · ${money(net)} net`;
 }
 
-function renderDetails(){
-  const d = recon;
-  document.getElementById('matchedCount').textContent = `${d.matched.length} charge(s) found in the ledger`;
-  document.getElementById('matchedBody').innerHTML = d.matched.map(m => `
-    <tr>
-      <td class="date">${fmtDate(m.statement.date)}</td>
-      <td>${escapeHtml(m.statement.desc)}</td>
-      <td class="num">${fmtAmt(m.statement.amount)}</td>
-      <td class="date">${fmtDate(m.bc.date)}</td>
-      <td>${escapeHtml(m.bc.desc)}</td>
-      <td class="ref">${escapeHtml(m.bc.ref)}</td>
-      <td class="num">${fmtAmt(m.bc.amount)}</td>
-    </tr>`).join('') || `<tr><td colspan="7" class="empty-state">No matches found.</td></tr>`;
-
-  document.getElementById('unmatchedBCCount').textContent = `${d.unmatchedBC.length} ledger row(s) not found on this statement`;
-  document.getElementById('unmatchedBCBody').innerHTML = d.unmatchedBC.map(r => `
-    <tr><td class="date">${fmtDate(r.date)}</td><td>${escapeHtml(r.desc)}</td><td class="ref">${escapeHtml(r.ref)}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
-  `).join('') || `<tr><td colspan="4" class="empty-state">Every ledger posting was matched to the statement.</td></tr>`;
-}
-
-function setHolder(name){
-  filters.holder = name;
-  document.getElementById('holderFilter').value = name;
-  renderReport();
-}
-
-function showView(id){
-  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id===id));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.view===id));
-}
-
-document.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', ()=> showView(t.dataset.view)));
-document.querySelectorAll('[data-goto]').forEach(b=> b.addEventListener('click', ()=> showView(b.dataset.goto)));
-document.querySelectorAll('.detail-tabs button').forEach(b=>{
+document.querySelectorAll('.tab').forEach(b=>{
   b.addEventListener('click', ()=>{
-    document.querySelectorAll('.detail-tabs button').forEach(x=>x.classList.toggle('active', x===b));
-    document.querySelectorAll('.dpanel').forEach(p=>p.classList.toggle('active', p.id===b.dataset.dpanel));
+    activeTab = b.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x===b));
+    renderTable();
   });
 });
+document.getElementById('holderFilter').addEventListener('change', e=>{ filters.holder = e.target.value; renderTable(); });
+document.getElementById('searchBox').addEventListener('input', e=>{ filters.q = e.target.value.trim(); renderTable(); });
 
-document.getElementById('holderFilter').addEventListener('change', e=> setHolder(e.target.value));
-document.getElementById('searchFilter').addEventListener('input', e=>{
-  filters.q = e.target.value.trim();
-  renderReport();
+/* ---------------- Excel report ---------------- */
+
+document.getElementById('downloadReport').addEventListener('click', ()=>{
+  if(!data) return;
+  const wb = XLSX.utils.book_new();
+  const sum = rows=> +rows.reduce((s,r)=>s+r.amount,0).toFixed(2);
+  const summary = [
+    ['Credit Card Reconciliation'],
+    ['Statement date', statementDate ? isoDate(statementDate) : ''],
+    ['Generated', isoDate(new Date())],
+    [],
+    ['Category','Count','Net amount'],
+    ['Statement transactions', pdfRows.length, +(-pdfRows.reduce((s,r)=>s+r.amount,0)).toFixed(2)],
+    ['Matched 1:1', data.matched.length, sum(data.matched)],
+    ['Matched (split entries)', data.split.length, sum(data.split)],
+    ['Missing from Excel', data.missing.length, sum(data.missing)],
+    ['Extra in Excel', data.extra.length, sum(data.extra)]
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Summary');
+
+  const sheet = (tab, name)=>{
+    const t = TABLES[tab];
+    const cols = t.cols.filter(c=>c.key!=='parts');
+    const head = cols.map(c=>c.label).concat(tab==='split' ? ['Ledger Entries'] : []);
+    const rows = sortedRows(tab).map(r=> cols.map(c=>{
+      const v = r[c.key];
+      if(v instanceof Date) return isoDate(v);
+      if(c.key==='amount') return +v.toFixed(2);
+      if(c.key==='credit') return v ? 'Yes' : 'No';
+      return v == null ? '' : v;
+    }).concat(tab==='split' ? [r.parts.map(p=>`${p.ref} (${money(p.amount)})`).join('; ')] : []));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([head, ...rows]), name);
+  };
+  sheet('missing', 'Missing from Excel');
+  sheet('split', 'Split Matches');
+  sheet('extra', 'Extra in Excel');
+  sheet('matched', 'Matched');
+  const tag = statementDate ? isoDate(statementDate) : isoDate(new Date());
+  XLSX.writeFile(wb, `reconciliation_report_${tag}.xlsx`);
 });
-document.getElementById('hdrImport').addEventListener('click', ()=> showView('loadView'));
-document.getElementById('hdrClear').addEventListener('click', ()=>{
-  document.getElementById('searchFilter').value = '';
-  filters.q = '';
-  setHolder('');
-});
+
+/* ---------------- run ---------------- */
 
 document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
   const statusEl = document.getElementById('runStatus');
@@ -1014,7 +976,6 @@ document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
     btn.disabled = false;
     return;
   }
-
   if(workbookPromise){
     try{ await workbookPromise; }catch(e){}
   }
@@ -1031,41 +992,11 @@ document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
     btn.disabled = false;
     return;
   }
-
   runMatch();
-  statusEl.className = 'status-line ok';
-  statusEl.textContent = `Extracted ${pdfRows.length} statement row(s), loaded ${bcRows.length} ledger row(s)${res.skipped ? ` (${res.skipped} skipped)` : ''}${res.flipped ? ', ledger signs reversed to match the statement' : ''}. Matched on amount + date (±${document.getElementById('dateTolerance').value || 0} days).`;
+  const tolDays = parseInt(document.getElementById('dateTolerance').value,10) || 0;
+  statusEl.textContent = `Done — ${pdfRows.length} statement transactions vs ${bcRows.length} ledger rows. ` +
+    `Matched on amount + posting date${tolDays ? ` (±${tolDays} day${tolDays===1?'':'s'})` : ''}.`;
   btn.disabled = false;
-  showView('reportView');
-  window.scrollTo({top:0, behavior:'smooth'});
-});
-
-document.getElementById('rerunBtn').addEventListener('click', ()=>{
-  const res = buildBcRows();
-  if(res.ok) runMatch();
-});
-
-document.getElementById('exportMissing').addEventListener('click', ()=>{
-  if(!recon) return;
-  const rows = [['Cardholder','Post Date','Tran Date','Reference','Description','Amount']];
-  visibleGroups().forEach(h=> h.rows.forEach(r=>
-    rows.push([h.name, fmtDate(r.date), fmtDate(r.tranDate), r.ref||'', descOnly(r), r.amount.toFixed(2)])));
-  const tag = filters.holder ? '_' + filters.holder.replace(/[^A-Za-z0-9]+/g,'_') : '';
-  downloadCsv(`not_submitted${tag}.csv`, rows);
-});
-document.getElementById('printReport').addEventListener('click', ()=> window.print());
-
-document.getElementById('exportMatched').addEventListener('click', ()=>{
-  if(!recon) return;
-  const rows = [['Statement Date','Statement Description','Statement Amount','Ledger Date','Ledger Description','Reference','Ledger Amount']];
-  recon.matched.forEach(m=>rows.push([fmtDate(m.statement.date), m.statement.desc, m.statement.amount.toFixed(2), fmtDate(m.bc.date), m.bc.desc, m.bc.ref, m.bc.amount.toFixed(2)]));
-  downloadCsv('reconciliation_submitted.csv', rows);
-});
-document.getElementById('exportUnmatchedBC').addEventListener('click', ()=>{
-  if(!recon) return;
-  const rows = [['Date','Description','Reference','Amount']];
-  recon.unmatchedBC.forEach(r=>rows.push([fmtDate(r.date), r.desc, r.ref, r.amount.toFixed(2)]));
-  downloadCsv('reconciliation_ledger_only.csv', rows);
 });
 </script>
 </body>
