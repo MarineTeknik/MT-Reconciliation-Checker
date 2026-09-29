@@ -110,6 +110,7 @@
   td.amt.neg{color:var(--red);}
   td.amt.pos{color:var(--green);}
   td.ref{white-space:nowrap;color:var(--ink-soft);}
+  td.far{color:#9a6a07;font-weight:600;}
   td .parts{font-size:12px;color:var(--ink-soft);}
   .empty-state{padding:30px 10px;text-align:center;color:var(--ink-faint);}
   .count-note{font-size:12px;color:var(--ink-faint);margin-top:8px;}
@@ -177,7 +178,7 @@
             <option value="flip">Reversed (charges negative)</option>
           </select>
         </div>
-        <div class="field"><label>Posting date tolerance (days)</label><input type="number" id="dateTolerance" value="0" min="0" max="31" style="min-width:90px;"></div>
+        <div class="field"><label>Max days between dates</label><input type="number" id="dateTolerance" value="" min="0" max="366" placeholder="No limit" style="min-width:110px;"></div>
       </div>
     </details>
     <div class="status-line" id="runStatus"></div>
@@ -562,25 +563,33 @@ async function extractPdf(){
 }
 
 function runMatch(){
-  const tol = Math.max(0, parseInt(document.getElementById('dateTolerance').value,10) || 0);
+  // Optional cap on how far apart the dates may be; blank = no limit.
+  const tolRaw = document.getElementById('dateTolerance').value.trim();
+  const tol = tolRaw === '' ? Infinity : Math.max(0, parseInt(tolRaw,10) || 0);
   const dayDiff = (a,b)=> Math.round(Math.abs(a - b) / 86400000);
+  // Days between a statement line and a ledger posting: the closer of its post and
+  // transaction dates, since the ledger may be booked on either (or later, in a batch).
+  const gap = (sRow, bRow)=> sRow.tranDate
+    ? Math.min(dayDiff(sRow.date, bRow.date), dayDiff(sRow.tranDate, bRow.date))
+    : dayDiff(sRow.date, bRow.date);
+  const holderOfRow = sRow => (sRow.cardholder || '').toUpperCase();
+  const sameHolder = (sRow, bRow)=> {
+    const h = holderOfRow(sRow);
+    return !!h && bRow.desc.toUpperCase().startsWith(h);
+  };
 
-  // Match on amount + posting date: the statement's Post Date against the ledger's
-  // Posting Date (exact by default; Advanced options can allow a few days either way).
-  // Collect every same-amount pair within that window, then pair up best-first:
-  // same cardholder before different cardholder, then closest date.
+  // Amount decides the match. When several lines share an amount, pair them up
+  // best-first: same cardholder before different cardholder, then the closest date.
   const candidates = [];
   pdfRows.forEach((sRow, si)=>{
-    const holder = (sRow.cardholder || '').toUpperCase();
     bcRows.forEach((bRow, bi)=>{
       if(Math.abs(sRow.amount - bRow.amount) > 0.005) return;
-      let dd = dayDiff(sRow.date, bRow.date);
+      const dd = gap(sRow, bRow);
       if(dd > tol) return;
-      const sameHolder = holder && bRow.desc.toUpperCase().startsWith(holder) ? 0 : 1;
-      candidates.push({si, bi, dd, sameHolder});
+      candidates.push({si, bi, dd, other: sameHolder(sRow, bRow) ? 0 : 1});
     });
   });
-  candidates.sort((a,b)=> a.sameHolder - b.sameHolder || a.dd - b.dd || a.si - b.si || a.bi - b.bi);
+  candidates.sort((a,b)=> a.other - b.other || a.dd - b.dd || a.si - b.si || a.bi - b.bi);
 
   const sUsed = new Set(), bUsed = new Set();
   const pairs = [];
@@ -591,33 +600,38 @@ function runMatch(){
   });
   pairs.sort((a,b)=> a.si - b.si);
 
-  const matched = pairs.map(c=>({statement: pdfRows[c.si], bc: bcRows[c.bi]}));
+  const matched = pairs.map(c=>({statement: pdfRows[c.si], bc: bcRows[c.bi], days: c.dd}));
 
   // Second pass: a statement charge split across two ledger postings (e.g. half deducted
-  // from an employee) — two leftover ledger rows in the date window that sum to it.
+  // from an employee) — two leftover ledger rows that add up to it, at least one of them
+  // booked to the same cardholder. Closest dates win.
   const leftB = bcRows.map((r,i)=>i).filter(i=>!bUsed.has(i));
   if(leftB.length <= 400){
     pdfRows.forEach((sRow, si)=>{
       if(sUsed.has(si)) return;
-      const near = leftB.filter(bi=>{
-        if(bUsed.has(bi)) return false;
-        let dd = dayDiff(sRow.date, bcRows[bi].date);
-        return dd <= tol;
-      });
-      for(let x=0; x<near.length; x++){
-        for(let y=x+1; y<near.length; y++){
-          const a = bcRows[near[x]], b = bcRows[near[y]];
+      let best = null;
+      for(let x=0; x<leftB.length; x++){
+        if(bUsed.has(leftB[x])) continue;
+        const a = bcRows[leftB[x]];
+        for(let y=x+1; y<leftB.length; y++){
+          if(bUsed.has(leftB[y])) continue;
+          const b = bcRows[leftB[y]];
           if(Math.abs(a.amount + b.amount - sRow.amount) > 0.005) continue;
-          sUsed.add(si); bUsed.add(near[x]); bUsed.add(near[y]);
-          matched.push({statement: sRow, split: true, parts: [a, b], bc: {
-            date: a.date,
-            desc: `${a.desc} + ${b.desc}`,
-            ref: `${a.ref} + ${b.ref}`,
-            amount: a.amount + b.amount
-          }});
-          return;
+          if(!sameHolder(sRow, a) && !sameHolder(sRow, b)) continue;
+          const dd = Math.max(gap(sRow, a), gap(sRow, b));
+          if(dd > tol) continue;
+          if(!best || dd < best.dd) best = {x:leftB[x], y:leftB[y], dd};
         }
       }
+      if(!best) return;
+      const a = bcRows[best.x], b = bcRows[best.y];
+      sUsed.add(si); bUsed.add(best.x); bUsed.add(best.y);
+      matched.push({statement: sRow, split: true, parts: [a, b], days: best.dd, bc: {
+        date: a.date,
+        desc: `${a.desc} + ${b.desc}`,
+        ref: `${a.ref} + ${b.ref}`,
+        amount: a.amount + b.amount
+      }});
     });
   }
   const unmatchedStatement = pdfRows.filter((_,i)=>!sUsed.has(i));
@@ -674,7 +688,7 @@ function runMatchAndRender(matched, unmatchedStatement, unmatchedBC){
       holder: ledgerHolder(r.desc, names), date: r.date, ref: r.ref, desc: r.desc, amount: -r.amount
     })),
     matched: matched.filter(m=>!m.split).map(m=>({
-      ...stmtRow(m.statement), ledgerRef: m.bc.ref, ledgerDate: m.bc.date, ledgerDesc: m.bc.desc
+      ...stmtRow(m.statement), ledgerRef: m.bc.ref, ledgerDate: m.bc.date, ledgerDesc: m.bc.desc, days: m.days
     }))
   };
 
@@ -807,7 +821,7 @@ const amtCell = v => `<td class="amt ${v<0?'neg':'pos'}">${money(v)}</td>`;
 const TABLES = {
   missing: {
     title:'Missing from Excel',
-    sub:'On the statement, but no ledger entry (or pair of entries) with the same amount and posting date. These need to be booked.',
+    sub:'On the statement, but no ledger entry (or pair of entries) with the same amount. These need to be booked.',
     cols:[
       {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
       {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
@@ -844,7 +858,7 @@ const TABLES = {
   },
   matched: {
     title:'Matched',
-    sub:'Statement transactions matched one-to-one to a ledger entry.',
+    sub:'Statement transactions matched to a ledger entry with the same amount. Days Apart shows how far apart the statement and ledger posting dates are.',
     cols:[
       {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
       {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
@@ -852,7 +866,8 @@ const TABLES = {
       {key:'desc', label:'Transaction Description', cell:r=>`<td>${escapeHtml(r.desc)}</td>`},
       {key:'amount', label:'Amount', cell:r=>amtCell(r.amount)},
       {key:'ledgerRef', label:'Ledger Document No.', cell:r=>`<td class="ref">${escapeHtml(r.ledgerRef)}</td>`},
-      {key:'ledgerDate', label:'Ledger Date', cell:r=>`<td class="nowrap">${isoDate(r.ledgerDate)}</td>`}
+      {key:'ledgerDate', label:'Ledger Posting Date', cell:r=>`<td class="nowrap">${isoDate(r.ledgerDate)}</td>`},
+      {key:'days', label:'Days Apart', cell:r=>`<td class="nowrap${r.days>7?' far':''}">${r.days}</td>`}
     ]
   }
 };
@@ -993,9 +1008,10 @@ document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
     return;
   }
   runMatch();
-  const tolDays = parseInt(document.getElementById('dateTolerance').value,10) || 0;
+  const tolRaw = document.getElementById('dateTolerance').value.trim();
   statusEl.textContent = `Done — ${pdfRows.length} statement transactions vs ${bcRows.length} ledger rows. ` +
-    `Matched on amount + posting date${tolDays ? ` (±${tolDays} day${tolDays===1?'':'s'})` : ''}.`;
+    `Matched on amount; posting date and cardholder decide between equal amounts` +
+    (tolRaw !== '' ? ` (dates at most ${tolRaw} day${tolRaw==='1'?'':'s'} apart).` : '.');
   btn.disabled = false;
 });
 </script>
