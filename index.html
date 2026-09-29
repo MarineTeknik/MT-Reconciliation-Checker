@@ -636,20 +636,24 @@ function runMatch(){
   pdfRows.forEach((sRow, si)=>{
     if(sUsed.has(si)){ sRow.reason = ''; return; }
     const freeSameAmt = bcRows.filter((b,bi)=> !bUsed.has(bi) && sameAmt(b.amount, sRow.amount));
-    const anySameAmt = bcRows.filter(b=> sameAmt(b.amount, sRow.amount));
     const sameDayHolder = bcRows.filter((b,bi)=> !bUsed.has(bi) && sameDay(b.date, sRow.date) && sameHolder(sRow, b));
     const oppSign = bcRows.filter((b,bi)=> !bUsed.has(bi) && sameAmt(b.amount, -sRow.amount) && sameDay(b.date, sRow.date));
+    const describe = b => {
+      const d = b.desc.length > 40 ? b.desc.slice(0,40) + '…' : b.desc;
+      return `${isoDate(b.date)} (${d})`;
+    };
     if(freeSameAmt.length){
-      const dates = [...new Set(freeSameAmt.map(b=>isoDate(b.date)))].slice(0,3).join(', ');
-      sRow.reason = `Amount is in Excel, but Posting Date is ${dates}`;
+      // An unused Excel entry with the same amount on another date — show whose it is
+      // so it is easy to tell a late posting from a coincidence.
+      freeSameAmt.sort((x,y)=> (sameHolder(sRow,y)-sameHolder(sRow,x)) || Math.abs(x.date-sRow.date) - Math.abs(y.date-sRow.date));
+      sRow.reason = `Amount is in Excel on ${describe(freeSameAmt[0])}, but Posting Date differs`;
     } else if(oppSign.length){
       sRow.reason = 'Same date and amount in Excel, but with the same sign as the PDF (should be opposite)';
-    } else if(anySameAmt.length){
-      sRow.reason = `Amount is in Excel (${isoDate(anySameAmt[0].date)}), but already matched to another PDF line`;
     } else if(sameDayHolder.length){
       const amts = sameDayHolder.slice(0,3).map(b=>money(-b.amount)).join(', ');
       sRow.reason = `Cardholder has Excel lines on this date, but for ${amts}`;
     } else {
+      // Same-amount Excel entries that are already matched belong to other charges.
       sRow.reason = 'Not in Excel';
     }
   });
