@@ -3,427 +3,520 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Credit Card Reconciliation Tool</title>
+<title>MT Card Reconciliation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --navy:#2c4a70;
-    --navy-dark:#22395a;
-    --paper:#eef1f5;
+    --sidebar:#2a3142;
+    --sidebar-ink:#a6b0cf;
+    --sidebar-muted:#6c7897;
+    --sidebar-active:#ffffff;
+    --primary:#626ed4;
+    --primary-dark:#525ec4;
+    --primary-soft:#eceefb;
+    --paper:#f5f5fa;
     --panel:#ffffff;
-    --line:#d9dee6;
-    --line-soft:#e8ebef;
-    --ink:#1c2a38;
-    --ink-soft:#5b6b7c;
-    --ink-faint:#8b98a6;
-    --blue-link:#2a5ba8;
-    --emerald:#0e6b5c;
-    --emerald-soft:#e3f2ee;
-    --emerald-line:#bfe0d6;
-    --amber:#96590a;
-    --amber-soft:#fbeed7;
-    --amber-line:#eeceA0;
-    --rose:#a3242c;
-    --rose-soft:#fbe9ea;
-    --rose-line:#f0c3c6;
+    --line:#e9ebf1;
+    --line-soft:#f1f2f6;
+    --ink:#2f3542;
+    --ink-soft:#5b626b;
+    --ink-faint:#9097a3;
+    --good:#02a499;
+    --good-soft:#e1f5f3;
+    --warn:#c98a00;
+    --warn-bar:#f8b425;
+    --warn-soft:#fef5e1;
+    --bad:#ec4561;
+    --bad-soft:#fde8ec;
     --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --shadow:0 1px 2px rgba(20,24,40,.05);
   }
   *{box-sizing:border-box;}
+  html,body{margin:0;}
   body{
-    margin:0;
     background:var(--paper);
     color:var(--ink);
     font-family:var(--sans);
-    font-size:14px;
+    font-size:13.5px;
     line-height:1.5;
     -webkit-font-smoothing:antialiased;
   }
-  main{max-width:1180px;margin:0 auto;padding:24px 24px 90px;}
+  a{color:inherit;}
+  svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 
-  .banner{
-    background:linear-gradient(180deg, var(--navy) 0%, var(--navy-dark) 100%);
-    color:#fff;
-    border-radius:10px;
-    padding:22px 28px;
-    margin-bottom:20px;
+  /* ---------- sidebar ---------- */
+  .sidebar{
+    position:fixed;inset:0 auto 0 0;width:236px;background:var(--sidebar);color:var(--sidebar-ink);
+    display:flex;flex-direction:column;z-index:30;transition:transform .2s;
   }
-  .banner h1{
-    font-size:22px;
-    font-weight:700;
-    margin:0 0 6px;
-    letter-spacing:0.1px;
-  }
-  .banner p{
-    margin:0;
-    font-size:13.5px;
-    color:#c7d3e0;
-    max-width:900px;
-    line-height:1.5;
-  }
+  .brand{height:64px;display:flex;align-items:center;gap:10px;padding:0 22px;color:#fff;font-weight:700;letter-spacing:1.5px;font-size:15px;}
+  .brand .mark{width:26px;height:26px;border-radius:6px;background:var(--primary);display:grid;place-items:center;}
+  .brand .mark svg{width:15px;height:15px;stroke:#fff;}
+  .nav-label{font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--sidebar-muted);padding:18px 22px 8px;}
+  .nav a{display:flex;align-items:center;gap:12px;padding:10px 22px;text-decoration:none;font-size:13.5px;border-left:3px solid transparent;}
+  .nav a:hover{color:#fff;}
+  .nav a.active{color:var(--sidebar-active);background:rgba(255,255,255,.04);border-left-color:var(--primary);}
+  .nav a .pill{margin-left:auto;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:10px;color:#fff;background:var(--bad);}
+  .nav a .pill.ok{background:var(--good);}
+  .nav a .pill:empty{display:none;}
+  .sidebar-foot{margin-top:auto;padding:18px 22px;font-size:11.5px;color:var(--sidebar-muted);line-height:1.5;}
 
-  .panel{
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:24px 28px;
-    margin-bottom:20px;
+  /* ---------- topbar ---------- */
+  .shell{margin-left:236px;min-height:100vh;display:flex;flex-direction:column;}
+  .topbar{
+    height:64px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;
+    padding:0 24px;position:sticky;top:0;z-index:20;
   }
-  .panel h2{
-    font-size:16px;
-    font-weight:700;
-    margin:0 0 4px;
-    color:var(--ink);
-  }
-  .panel .sub{
-    font-size:13px;
-    color:var(--ink-soft);
-    margin:0 0 18px;
-  }
+  .icon-btn{background:transparent;border:none;color:var(--ink-soft);padding:6px;border-radius:6px;cursor:pointer;display:grid;place-items:center;}
+  .icon-btn:hover{background:var(--line-soft);color:var(--ink);}
+  .icon-btn svg{width:20px;height:20px;}
+  #menuBtn{display:none;}
+  .topbar .crumb{font-weight:600;color:var(--ink);}
+  .topbar .spacer{flex:1;}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--line-soft);border-radius:20px;padding:6px 12px;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;}
+  .chip b{color:var(--ink);font-weight:600;}
 
-  .load-row{
-    display:flex;
-    gap:16px;
-    align-items:stretch;
-    flex-wrap:wrap;
-  }
-  .load-col{flex:1;min-width:240px;display:flex;flex-direction:column;}
-  .load-col .dz-label{
-    font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;
-    color:var(--ink-soft);margin-bottom:8px;
-  }
-  .dropzone{
-    flex:1;
-    border:1.5px dashed #b9c2cd;
-    border-radius:6px;
-    background:#fbfcfd;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-    min-height:70px;
-    cursor:pointer;
-    transition:border-color .15s, background .15s;
-    padding:12px;
-  }
-  .dropzone:hover, .dropzone.dragover{
-    border-color:var(--navy);
-    background:#f2f5f9;
-  }
-  .dropzone .dz-text{font-size:13.5px;color:var(--ink-soft);}
-  .dropzone.has-file{border-style:solid;border-color:var(--emerald-line);background:var(--emerald-soft);}
-  .dropzone.has-file .dz-text{color:var(--emerald);font-weight:600;font-family:var(--mono);font-size:12.5px;word-break:break-all;}
-  .dropzone input[type=file]{display:none;}
+  main{padding:24px;max-width:1400px;width:100%;}
+  .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+  .page-head h1{font-size:17px;margin:0 0 2px;font-weight:700;}
+  .page-head p{margin:0;color:var(--ink-soft);font-size:13px;}
 
-  .run-col{display:flex;align-items:flex-end;}
-  .run-col button{
-    width:100%;
-    min-height:70px;
-    min-width:170px;
-  }
+  /* ---------- cards / panels ---------- */
+  .panel{background:var(--panel);border-radius:6px;box-shadow:var(--shadow);border:1px solid var(--line);padding:20px 22px;margin-bottom:22px;min-width:0;}
+  .panel-title{font-size:14px;font-weight:600;margin:0 0 4px;color:var(--ink);}
+  .panel-sub{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;}
+  .panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .panel-head .panel-sub{margin:0;}
 
   button{
-    border:none;
-    border-radius:6px;
-    padding:10px 18px;
-    font-size:13.5px;
-    font-weight:700;
-    font-family:var(--sans);
-    cursor:pointer;
-    background:var(--navy);
-    color:#fff;
-    letter-spacing:0.1px;
+    border:none;border-radius:4px;padding:9px 16px;font-size:13px;font-weight:600;font-family:var(--sans);
+    cursor:pointer;background:var(--primary);color:#fff;display:inline-flex;align-items:center;gap:7px;
   }
-  button:hover{background:var(--navy-dark);}
-  button:disabled{background:#9aa7b4;opacity:0.75;cursor:not-allowed;}
-  button.ghost{
-    background:transparent;
-    color:var(--ink-soft);
-    border:1px solid var(--line);
-    padding:6px 12px;
-    font-size:12px;
-    font-weight:600;
+  button:hover{background:var(--primary-dark);}
+  button:disabled{background:#aab0e6;cursor:not-allowed;}
+  button.ghost{background:#fff;color:var(--ink-soft);border:1px solid var(--line);padding:6px 12px;font-size:12px;}
+  button.ghost:hover{background:var(--line-soft);color:var(--ink);}
+
+  /* upload */
+  .load-row{display:flex;gap:16px;align-items:stretch;flex-wrap:wrap;}
+  .load-col{flex:1;min-width:220px;display:flex;flex-direction:column;}
+  .dz-label{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px;}
+  .dropzone{
+    flex:1;border:1.5px dashed #c9cde0;border-radius:6px;background:#fafbfe;display:flex;align-items:center;justify-content:center;
+    gap:10px;text-align:center;min-height:74px;cursor:pointer;transition:border-color .15s, background .15s;padding:12px;color:var(--ink-soft);
   }
-  button.ghost:hover{background:#f4f6f8;color:var(--ink);}
+  .dropzone:hover,.dropzone.dragover{border-color:var(--primary);background:var(--primary-soft);}
+  .dropzone.has-file{border-style:solid;border-color:#b3e3de;background:var(--good-soft);color:var(--good);}
+  .dropzone.has-file .dz-text{font-weight:600;font-family:var(--mono);font-size:12px;word-break:break-all;}
+  .dropzone input[type=file]{display:none;}
+  .run-col{display:flex;align-items:flex-end;}
+  .run-col button{min-height:74px;min-width:180px;justify-content:center;font-size:13.5px;}
 
   details.advanced{margin-top:16px;}
-  details.advanced summary{
-    font-size:13px;
-    font-weight:600;
-    color:var(--blue-link);
-    cursor:pointer;
-    list-style:none;
-    display:inline-flex;
-    align-items:center;
-    gap:4px;
-  }
+  details.advanced summary{font-size:12.5px;font-weight:600;color:var(--primary);cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:4px;}
   details.advanced summary::-webkit-details-marker{display:none;}
   details.advanced summary::after{content:"▾";font-size:10px;transition:transform .15s;}
   details.advanced[open] summary::after{transform:rotate(180deg);}
-  details.advanced .adv-body{
-    padding:16px 0 4px;
-    display:flex;
-    flex-wrap:wrap;
-    gap:16px;
-    align-items:flex-end;
-  }
-
+  .adv-body{padding:16px 0 4px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;}
   .field{display:flex;flex-direction:column;gap:5px;}
-  .field label{
-    font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;
-    color:var(--ink-soft);
+  .field label{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-faint);}
+  select,input[type=number],input[type=text],input[type=search]{
+    border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:13px;font-family:var(--sans);background:#fff;color:var(--ink);min-width:170px;
   }
-  select, input[type=number], input[type=text]{
-    border:1px solid var(--line);
-    border-radius:5px;
-    padding:8px 10px;
-    font-size:13px;
-    font-family:var(--sans);
-    background:#fff;
-    color:var(--ink);
-    min-width:180px;
-  }
-  select:focus, input:focus{outline:2px solid #d7e2f0;border-color:var(--navy);}
+  select:focus,input:focus{outline:2px solid var(--primary-soft);border-color:var(--primary);}
+  .status-line{margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);white-space:pre-wrap;}
+  .status-line.err{color:var(--bad);}
+  .status-line.ok{color:var(--good);}
 
-  .status-line{
-    margin-top:12px;
-    font-family:var(--mono);
-    font-size:12px;
-    color:var(--ink-soft);
-    white-space:pre-wrap;
-  }
-  .status-line.err{color:var(--rose);}
-  .status-line.ok{color:var(--emerald);}
+  .no-results{text-align:center;padding:56px 20px;color:var(--ink-soft);}
+  .no-results h3{font-size:15px;margin:0 0 6px;color:var(--ink);}
+  .no-results p{margin:0;}
 
-  .no-results{
-    text-align:center;
-    padding:64px 20px 40px;
+  /* filter bar */
+  .filter-bar{
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:6px;
+    padding:12px 16px;margin-bottom:22px;box-shadow:var(--shadow);position:sticky;top:64px;z-index:10;
   }
-  .no-results h3{
-    font-size:16px;
-    font-weight:700;
-    margin:0 0 8px;
-    color:var(--ink);
-  }
-  .no-results p{
-    font-size:13.5px;
-    color:var(--ink-soft);
-    margin:0;
-  }
+  .filter-bar .fb-label{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);}
+  .filter-bar select{min-width:230px;}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;}
+  .seg button{background:#fff;color:var(--ink-soft);border-radius:0;padding:7px 12px;font-size:12.5px;font-weight:600;border-right:1px solid var(--line);}
+  .seg button:last-child{border-right:none;}
+  .seg button:hover{background:var(--line-soft);}
+  .seg button.active{background:var(--primary);color:#fff;}
+  .filter-bar .spacer{flex:1;}
+  .link-btn{background:none;color:var(--primary);padding:4px 6px;font-size:12.5px;}
+  .link-btn:hover{background:none;text-decoration:underline;}
 
-  .review-toggle{margin-top:18px;}
+  /* stat cards */
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px;margin-bottom:22px;}
+  .stat{background:var(--primary);color:#fff;border-radius:6px;padding:20px 20px 14px;position:relative;overflow:hidden;box-shadow:var(--shadow);min-width:0;}
+  .stat .top{display:flex;gap:14px;align-items:center;}
+  .stat .ico{width:48px;height:48px;border-radius:6px;background:rgba(255,255,255,.16);display:grid;place-items:center;flex:none;}
+  .stat .ico svg{width:24px;height:24px;stroke:#fff;}
+  .stat .lbl{font-size:11.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.75);}
+  .stat .val{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stat .foot{margin-top:16px;padding-top:10px;border-top:1px solid rgba(255,255,255,.14);font-size:12px;color:rgba(255,255,255,.8);}
+  .ribbon{position:absolute;top:16px;right:0;font-size:11.5px;font-weight:700;padding:3px 10px 3px 14px;color:#fff;clip-path:polygon(8px 0,100% 0,100% 100%,8px 100%,0 50%);}
+  .ribbon.good{background:var(--good);}
+  .ribbon.bad{background:var(--bad);}
+  .ribbon.warn{background:var(--warn-bar);color:#3b2a00;}
+  .ribbon.info{background:#38a4f8;}
 
-  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+
+  /* report table */
+  .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:6px;}
+  .table-wrap.tall{max-height:560px;}
+  .table-wrap.short{max-height:360px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
   th{
-    text-align:left;background:#f5f7f9;padding:8px 10px;
-    border-bottom:1px solid var(--line);font-size:10.5px;
-    text-transform:uppercase;letter-spacing:0.5px;color:var(--ink-soft);
-    font-weight:700;position:sticky;top:0;
+    text-align:left;background:#f8f9fc;padding:10px 12px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;
+    letter-spacing:.4px;color:var(--ink-faint);font-weight:700;position:sticky;top:0;z-index:1;white-space:nowrap;
   }
-  td{padding:7px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top;font-variant-numeric:tabular-nums;}
+  th.sortable{cursor:pointer;user-select:none;}
+  th.sortable:hover{color:var(--ink);}
+  th .arrow{font-size:9px;margin-left:3px;}
+  td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle;font-variant-numeric:tabular-nums;}
+  .num{text-align:right;font-family:var(--mono);font-size:12.5px;white-space:nowrap;}
+  tr.holder{cursor:pointer;}
+  tr.holder:hover td{background:#fafbfe;}
+  tr.holder.open td{background:var(--primary-soft);}
+  tr.holder.open .avatar{background:#fff;}
+  .holder-name{font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px;white-space:nowrap;}
+  .holder-name .caret{color:var(--ink-faint);transition:transform .15s;display:inline-block;width:10px;}
+  tr.open .holder-name .caret{transform:rotate(90deg);}
+  .avatar{width:28px;height:28px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-size:11px;font-weight:700;flex:none;}
+  .meter{display:flex;align-items:center;gap:8px;min-width:130px;}
+  .meter .track{flex:1;height:6px;background:var(--line-soft);border-radius:3px;overflow:hidden;}
+  .meter .fill{height:100%;border-radius:3px;}
+  .meter .pct{font-family:var(--mono);font-size:12px;color:var(--ink-soft);width:38px;text-align:right;}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:12px;font-size:11.5px;font-weight:600;white-space:nowrap;}
+  .badge svg{width:12px;height:12px;stroke-width:2.4;}
+  .badge.good{background:var(--good-soft);color:var(--good);}
+  .badge.warn{background:var(--warn-soft);color:var(--warn);}
+  .badge.bad{background:var(--bad-soft);color:var(--bad);}
+  .amt-bad{color:var(--bad);}
+  .amt-good{color:var(--good);}
+  tr.detail td{background:#fbfbfe;padding:0;}
+  .detail-inner{padding:14px 18px 18px 54px;}
+  .detail-inner h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);}
+  .detail-inner table{font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:4px;}
+  .detail-inner td{padding:7px 10px;}
+  .detail-inner .none{color:var(--ink-faint);font-style:italic;}
+  .empty-state{padding:30px 10px;text-align:center;color:var(--ink-faint);font-style:italic;}
+  .mini{font-size:12px;color:var(--ink-faint);}
+
+  /* status breakdown */
+  .breakdown{display:flex;gap:28px;align-items:center;flex-wrap:wrap;}
+  .bd-summary{flex:1 1 280px;min-width:0;}
+  #breakdownRows{flex:2 1 480px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+  .breakdown .row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:6px;}
+  .breakdown .row.selected{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft);}
+  .breakdown .dot{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:none;}
+  .breakdown .dot svg{width:18px;height:18px;stroke-width:2.2;}
+  .breakdown .dot.good{background:var(--good-soft);color:var(--good);}
+  .breakdown .dot.warn{background:var(--warn-soft);color:var(--warn);}
+  .breakdown .dot.bad{background:var(--bad-soft);color:var(--bad);}
+  .breakdown .t{flex:1;min-width:0;}
+  .breakdown .t .l{font-size:12.5px;color:var(--ink-soft);}
+  .breakdown .t .v{font-size:18px;font-weight:700;color:var(--ink);}
+  .breakdown .t .s{font-size:12px;color:var(--ink-faint);font-family:var(--mono);}
+  .breakdown .row.clickable{cursor:pointer;}
+  .breakdown .row.clickable:hover .l{color:var(--primary);}
+  .split-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;background:#fff;margin:6px 0 8px;}
+  .split-bar span{display:block;height:100%;}
+  .split-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);}
+  .split-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+
+  /* tabs */
+  .results-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:14px;overflow-x:auto;}
+  .tab-btn{background:transparent;color:var(--ink-faint);border:none;border-bottom:2px solid transparent;border-radius:0;padding:10px 14px;font-weight:600;font-size:13px;white-space:nowrap;}
+  .tab-btn:hover{background:transparent;color:var(--ink);}
+  .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px;flex-wrap:wrap;}
   td[contenteditable=true]{outline:none;}
   td[contenteditable=true]:focus{background:#fff6d8;}
-  .num{text-align:right;font-family:var(--mono);white-space:nowrap;}
-  .table-wrap{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:6px;}
-  .table-wrap table{margin:0;}
-  .row-del{color:var(--rose);cursor:pointer;font-size:13px;text-align:center;}
-  .mini{font-size:11.5px;color:var(--ink-faint);}
-  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px;flex-wrap:wrap;}
-  .empty-state{padding:30px 10px;text-align:center;color:var(--ink-faint);font-size:13px;font-style:italic;}
+  .row-del{color:var(--bad);cursor:pointer;text-align:center;}
 
-  .ledger{
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:10px;
-    margin-bottom:20px;
-    overflow:hidden;
+  footer{text-align:center;font-size:12px;color:var(--ink-faint);padding:18px 24px 28px;}
+  .backdrop{display:none;}
+
+  @media (max-width:1180px){
+    .stats{grid-template-columns:repeat(2,minmax(0,1fr));}
   }
-  .ledger-title{font-size:14px;font-weight:700;color:var(--ink);padding:16px 24px 0;}
-  .ledger-tape{display:flex;align-items:stretch;padding:14px 24px 20px;}
-  .ledger-item{flex:1;padding:0 20px;border-right:1px dashed var(--line);}
-  .ledger-item:last-child{border-right:none;}
-  .ledger-item .l{font-size:10.5px;text-transform:uppercase;letter-spacing:0.8px;color:var(--ink-faint);font-weight:700;}
-  .ledger-item .v{font-family:var(--mono);font-size:25px;font-weight:600;color:var(--ink);margin-top:4px;}
-  .ledger-item .v.diff-ok{color:var(--emerald);}
-  .ledger-item .v.diff-bad{color:var(--rose);}
-  .ledger-status{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;}
-  .ledger-status.ok{background:var(--emerald-soft);color:var(--emerald);border:1px solid var(--emerald-line);}
-  .ledger-status.bad{background:var(--rose-soft);color:var(--rose);border:1px solid var(--rose-line);}
-  .ledger-status .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
-
-  .count-cards{display:grid;grid-template-columns:repeat(auto-fit, minmax(170px,1fr));gap:10px;margin-bottom:20px;}
-  .count-card{border:1px solid var(--line);border-radius:8px;background:#fff;padding:14px 16px;}
-  .count-card .n{font-family:var(--mono);font-size:23px;font-weight:600;color:var(--ink);}
-  .count-card .l{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px;}
-  .count-card.matched{border-color:var(--emerald-line);background:var(--emerald-soft);}
-  .count-card.matched .n{color:var(--emerald);}
-  .count-card.rose{border-color:var(--rose-line);background:var(--rose-soft);}
-  .count-card.rose .n{color:var(--rose);}
-  .count-card.amber{border-color:var(--amber-line);background:var(--amber-soft);}
-  .count-card.amber .n{color:var(--amber);}
-
-  .results-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);}
-  .tab-btn{background:transparent;color:var(--ink-faint);border:none;border-bottom:2px solid transparent;border-radius:0;padding:10px 16px;font-weight:700;font-size:12.5px;}
-  .tab-btn.active{color:var(--ink);border-bottom:2px solid var(--navy);}
-  .tab-panel{display:none;padding-top:14px;}
-  .tab-panel.active{display:block;}
-
-  footer{
-    text-align:center;font-size:12px;color:var(--ink-faint);
-    padding:22px;
+  @media (max-width:900px){
+    .sidebar{transform:translateX(-100%);}
+    body.nav-open .sidebar{transform:none;}
+    body.nav-open .backdrop{display:block;position:fixed;inset:0;background:rgba(20,24,40,.4);z-index:25;}
+    .shell{margin-left:0;}
+    #menuBtn{display:grid;}
+    .topbar .chip.hide-sm{display:none;}
+  }
+  @media (max-width:600px){
+    main{padding:16px;}
+    .topbar{padding:0 16px;}
+    .stats{grid-template-columns:minmax(0,1fr);}
+    .filter-bar select{min-width:0;width:100%;}
+    .filter-bar{position:static;}
+    #breakdownRows{grid-template-columns:minmax(0,1fr);}
+    .run-col,.run-col button{width:100%;}
+    .panel{padding:16px;}
+    .detail-inner{padding:12px;}
+  }
+  @media print{
+    .sidebar,.topbar,.filter-bar,#uploadPanel,footer,.results-tabs,button{display:none !important;}
+    .shell{margin:0;}
+    .table-wrap{max-height:none !important;overflow:visible;}
   }
 </style>
 </head>
 <body>
-<main>
 
-  <div class="banner">
-    <h1>Credit Card Reconciliation Tool</h1>
-    <p>Upload this month's TravelBank PDF statement and Business Central ledger export to reconcile them — everything runs in your browser, nothing is uploaded anywhere.</p>
-  </div>
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><span class="mark"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></span>MT RECON</div>
+  <div class="nav-label">Main</div>
+  <nav class="nav">
+    <a href="#uploadPanel" class="active"><svg class="i" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>Load files</a>
+    <a href="#reportPanel"><svg class="i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 20a6.5 6.5 0 0 0-3-5.5"/></svg>Cardholder report<span class="pill" id="navOutstanding"></span></a>
+    <a href="#txPanel"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Transactions</a>
+  </nav>
+  <div class="nav-label">Tools</div>
+  <nav class="nav">
+    <a href="#reviewPanel"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Edit statement rows</a>
+  </nav>
+  <div class="sidebar-foot">Runs entirely in your browser. No data leaves this tab.</div>
+</aside>
+<div class="backdrop" id="backdrop"></div>
 
-  <div class="panel">
-    <h2>1. Load this month's files</h2>
-    <p class="sub">Both files stay local to your browser tab. Re-open this file and re-upload each month.</p>
+<div class="shell">
+  <header class="topbar">
+    <button class="icon-btn" id="menuBtn" aria-label="Open menu"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <span class="crumb">Credit Card Reconciliation</span>
+    <span class="spacer"></span>
+    <span class="chip hide-sm" id="stmtChip" style="display:none;">Statement <b id="stmtDateText"></b></span>
+  </header>
 
-    <div class="load-row">
-      <div class="load-col">
-        <div class="dz-label">PDF Statement</div>
-        <div class="dropzone" id="pdfDropzone">
-          <div class="dz-text" id="pdfDzText">Click or drop the statement PDF here</div>
-          <input type="file" id="pdfFile" accept="application/pdf">
-        </div>
-      </div>
-      <div class="load-col">
-        <div class="dz-label">Excel Ledger Export</div>
-        <div class="dropzone" id="xlsxDropzone">
-          <div class="dz-text" id="xlsxDzText">Click or drop the ledger .xlsx here</div>
-          <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv">
-        </div>
-      </div>
-      <div class="run-col">
-        <button id="runMatchBtn" disabled>Run Reconciliation</button>
-      </div>
-    </div>
-
-    <details class="advanced">
-      <summary>Advanced options</summary>
-      <div class="adv-body">
-        <div class="field">
-          <label>PDF: skip lines containing</label>
-          <input type="text" id="pdfSkipWords" value="Total,Subtotal,Page,Balance,Statement,Continued" style="min-width:340px;">
-        </div>
-        <div class="field">
-          <label>Ledger sheet</label>
-          <select id="sheetSelect" disabled><option>—</option></select>
-        </div>
-        <div class="field"><label>Date column</label><select id="mapDate"><option value="">— auto —</option></select></div>
-        <div class="field"><label>Amount column</label><select id="mapAmount"><option value="">— auto —</option></select></div>
-        <div class="field"><label>Description column</label><select id="mapDesc"><option value="">— auto —</option></select></div>
-        <div class="field"><label>Reference column</label><select id="mapRef"><option value="">— auto —</option></select></div>
-        <div class="field">
-          <label>Ledger amount sign</label>
-          <select id="ledgerSign">
-            <option value="auto">Auto-detect</option>
-            <option value="same">Same as statement</option>
-            <option value="flip">Reversed (charges negative)</option>
-          </select>
-        </div>
-        <div class="field"><label>Date tolerance (days)</label><input type="number" id="dateTolerance" value="3" min="0" max="31" style="min-width:90px;"></div>
-      </div>
-    </details>
-
-    <div class="status-line" id="runStatus"></div>
-  </div>
-
-  <div id="emptyState" class="no-results">
-    <h3>No results yet</h3>
-    <p>Upload both files above and click "Run Reconciliation" to see the breakdown.</p>
-  </div>
-
-  <div id="resultsWrap" style="display:none;">
-
-    <div class="ledger">
-      <div class="ledger-title">Reconciliation Summary</div>
-      <div class="ledger-tape">
-        <div class="ledger-item">
-          <div class="l">Statement Total</div>
-          <div class="v" id="ledgerStmtTotal">$0.00</div>
-        </div>
-        <div class="ledger-item">
-          <div class="l">Ledger Total</div>
-          <div class="v" id="ledgerBcTotal">$0.00</div>
-        </div>
-        <div class="ledger-item">
-          <div class="l">Variance</div>
-          <div class="v" id="ledgerDiff">$0.00</div>
-          <div class="ledger-status" id="ledgerStatus"></div>
-        </div>
+  <main>
+    <div class="page-head">
+      <div>
+        <h1>Dashboard</h1>
+        <p>Who has submitted their card charges to Business Central, and who hasn't.</p>
       </div>
     </div>
 
-    <div class="count-cards" id="summaryCards"></div>
+    <div class="panel" id="uploadPanel">
+      <h2 class="panel-title">Load this month's files</h2>
+      <p class="panel-sub">The Elan statement PDF and the Business Central ledger export (.xlsx). Both stay in your browser.</p>
 
-    <div class="panel" style="padding-top:20px;">
-      <div class="results-tabs">
-        <button class="tab-btn active" data-tab="matched">Matched</button>
-        <button class="tab-btn" data-tab="unmatchedStatement">On statement, not in ledger</button>
-        <button class="tab-btn" data-tab="unmatchedBC">In ledger, not on statement</button>
-      </div>
-
-      <div class="tab-panel active" id="panel-matched">
-        <div class="toolbar"><span class="mini" id="matchedCount"></span><button class="ghost" id="exportMatched">Export CSV</button></div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Statement date</th><th>Statement description</th><th class="num">Statement amt</th><th>Ledger date</th><th>Ledger description</th><th>Reference</th><th class="num">Ledger amt</th></tr></thead>
-          <tbody id="matchedBody"></tbody>
-        </table></div>
-      </div>
-
-      <div class="tab-panel" id="panel-unmatchedStatement">
-        <div class="toolbar"><span class="mini" id="unmatchedStatementCount"></span><button class="ghost" id="exportUnmatchedStatement">Export CSV</button></div>
-        <div class="mini" style="margin-bottom:6px;">Charged on the card but not yet found in the ledger — likely still needs to be posted.</div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
-          <tbody id="unmatchedStatementBody"></tbody>
-        </table></div>
-      </div>
-
-      <div class="tab-panel" id="panel-unmatchedBC">
-        <div class="toolbar"><span class="mini" id="unmatchedBCCount"></span><button class="ghost" id="exportUnmatchedBC">Export CSV</button></div>
-        <div class="mini" style="margin-bottom:6px;">Posted in the ledger but not found on this statement — check card, date range, or a possible duplicate posting.</div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Date</th><th>Description</th><th>Reference</th><th class="num">Amount</th></tr></thead>
-          <tbody id="unmatchedBCBody"></tbody>
-        </table></div>
-      </div>
-    </div>
-
-    <details class="advanced review-toggle">
-      <summary>Review / edit extracted statement rows</summary>
-      <div style="padding-top:14px;">
-        <div class="toolbar">
-          <span class="mini" id="pdfCount">0 rows extracted</span>
-          <div style="display:flex;gap:6px;">
-            <button class="ghost" id="pdfAddRow">+ Add row</button>
-            <button class="ghost" id="rerunBtn">Re-run reconciliation</button>
+      <div class="load-row">
+        <div class="load-col">
+          <div class="dz-label">PDF Statement</div>
+          <div class="dropzone" id="pdfDropzone">
+            <div class="dz-text" id="pdfDzText">Click or drop the statement PDF here</div>
+            <input type="file" id="pdfFile" accept="application/pdf">
           </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th style="width:100px;">Date</th><th>Description</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr></thead>
-            <tbody id="pdfTableBody"></tbody>
-          </table>
+        <div class="load-col">
+          <div class="dz-label">Excel Ledger Export</div>
+          <div class="dropzone" id="xlsxDropzone">
+            <div class="dz-text" id="xlsxDzText">Click or drop the ledger .xlsx here</div>
+            <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv">
+          </div>
+        </div>
+        <div class="run-col">
+          <button id="runMatchBtn" disabled><svg class="i" viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"/></svg>Run Reconciliation</button>
         </div>
       </div>
-    </details>
-  </div>
 
-</main>
+      <details class="advanced">
+        <summary>Advanced options</summary>
+        <div class="adv-body">
+          <div class="field">
+            <label>PDF: skip lines containing</label>
+            <input type="text" id="pdfSkipWords" value="Total,Subtotal,Page,Balance,Statement,Continued" style="min-width:300px;">
+          </div>
+          <div class="field">
+            <label>Ledger sheet</label>
+            <select id="sheetSelect" disabled><option>—</option></select>
+          </div>
+          <div class="field"><label>Date column</label><select id="mapDate"><option value="">— auto —</option></select></div>
+          <div class="field"><label>Amount column</label><select id="mapAmount"><option value="">— auto —</option></select></div>
+          <div class="field"><label>Description column</label><select id="mapDesc"><option value="">— auto —</option></select></div>
+          <div class="field"><label>Reference column</label><select id="mapRef"><option value="">— auto —</option></select></div>
+          <div class="field">
+            <label>Ledger amount sign</label>
+            <select id="ledgerSign">
+              <option value="auto">Auto-detect</option>
+              <option value="same">Same as statement</option>
+              <option value="flip">Reversed (charges negative)</option>
+            </select>
+          </div>
+          <div class="field"><label>Date tolerance (days)</label><input type="number" id="dateTolerance" value="3" min="0" max="31" style="min-width:90px;"></div>
+        </div>
+      </details>
 
-<footer>Runs entirely client-side (PDF.js + SheetJS) · no data leaves your browser · re-run each statement cycle with new files.</footer>
+      <div class="status-line" id="runStatus"></div>
+    </div>
+
+    <div id="emptyState" class="panel no-results">
+      <h3>No results yet</h3>
+      <p>Load both files above and click "Run Reconciliation" to see who has submitted.</p>
+    </div>
+
+    <div id="resultsWrap" style="display:none;">
+
+      <div class="filter-bar" id="filterBar">
+        <span class="fb-label">Cardholder</span>
+        <select id="holderFilter"><option value="">All cardholders</option></select>
+        <span class="fb-label">Status</span>
+        <div class="seg" id="statusFilter">
+          <button data-status="all" class="active">All</button>
+          <button data-status="none">Not submitted</button>
+          <button data-status="partial">Partial</button>
+          <button data-status="done">Submitted</button>
+        </div>
+        <span class="spacer"></span>
+        <button class="link-btn" id="clearFilters">Clear filters</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="ribbon info" id="statChargesRibbon"></span>
+          <div class="top">
+            <div class="ico"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h3"/></svg></div>
+            <div style="min-width:0;"><div class="lbl">On statement</div><div class="val" id="statTotal">$0.00</div></div>
+          </div>
+          <div class="foot" id="statTotalFoot">—</div>
+        </div>
+        <div class="stat">
+          <span class="ribbon good" id="statSubRibbon"></span>
+          <div class="top">
+            <div class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"/></svg></div>
+            <div style="min-width:0;"><div class="lbl">Submitted</div><div class="val" id="statSub">$0.00</div></div>
+          </div>
+          <div class="foot" id="statSubFoot">—</div>
+        </div>
+        <div class="stat">
+          <span class="ribbon bad" id="statOutRibbon"></span>
+          <div class="top">
+            <div class="ico"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+            <div style="min-width:0;"><div class="lbl">Not submitted</div><div class="val" id="statOut">$0.00</div></div>
+          </div>
+          <div class="foot" id="statOutFoot">—</div>
+        </div>
+        <div class="stat">
+          <span class="ribbon warn" id="statHoldersRibbon"></span>
+          <div class="top">
+            <div class="ico"><svg class="i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 20a6.5 6.5 0 0 0-3-5.5"/></svg></div>
+            <div style="min-width:0;"><div class="lbl">Cardholders outstanding</div><div class="val" id="statHolders">0</div></div>
+          </div>
+          <div class="foot" id="statHoldersFoot">—</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel breakdown" id="breakdownPanel">
+          <div class="bd-summary">
+            <h2 class="panel-title">Submission Status</h2>
+            <p class="panel-sub" id="breakdownSub">Cardholders by status</p>
+            <div class="split-bar" id="splitBar" role="img" aria-label="Submitted versus not submitted amount"></div>
+            <div class="split-legend" id="splitLegend"></div>
+          </div>
+          <div id="breakdownRows"></div>
+        </div>
+        <div class="panel" id="reportPanel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Cardholder Submission Report</h2>
+              <p class="panel-sub">A charge counts as submitted once it is found in the Business Central ledger. Click a cardholder to see their missing charges.</p>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="ghost" id="exportReport">Export report CSV</button>
+              <button class="ghost" id="exportMissing">Export missing charges</button>
+              <button class="ghost" id="printReport">Print</button>
+            </div>
+          </div>
+          <div class="table-wrap tall">
+            <table id="reportTable">
+              <thead><tr>
+                <th class="sortable" data-sort="name">Cardholder<span class="arrow"></span></th>
+                <th class="sortable num" data-sort="count">Charges<span class="arrow"></span></th>
+                <th class="sortable num" data-sort="total">Statement<span class="arrow"></span></th>
+                <th class="sortable num" data-sort="subAmt">Submitted<span class="arrow"></span></th>
+                <th class="sortable num" data-sort="outAmt">Not submitted<span class="arrow"></span></th>
+                <th class="sortable" data-sort="pct">Progress<span class="arrow"></span></th>
+                <th class="sortable" data-sort="status">Status<span class="arrow"></span></th>
+              </tr></thead>
+              <tbody id="reportBody"></tbody>
+            </table>
+          </div>
+          <div class="mini" id="reportCount" style="margin-top:8px;"></div>
+        </div>
+
+      </div>
+
+      <div class="panel" id="txPanel">
+        <div class="results-tabs">
+          <button class="tab-btn active" data-tab="unmatchedStatement">Not submitted</button>
+          <button class="tab-btn" data-tab="matched">Submitted</button>
+          <button class="tab-btn" data-tab="unmatchedBC">In ledger, not on statement</button>
+        </div>
+
+        <div class="tab-panel active" id="panel-unmatchedStatement">
+          <div class="toolbar"><span class="mini" id="unmatchedStatementCount"></span><button class="ghost" id="exportUnmatchedStatement">Export CSV</button></div>
+          <div class="table-wrap short"><table>
+            <thead><tr><th>Post date</th><th>Cardholder</th><th>Description</th><th class="num">Amount</th></tr></thead>
+            <tbody id="unmatchedStatementBody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="tab-panel" id="panel-matched">
+          <div class="toolbar"><span class="mini" id="matchedCount"></span><button class="ghost" id="exportMatched">Export CSV</button></div>
+          <div class="table-wrap short"><table>
+            <thead><tr><th>Statement date</th><th>Statement description</th><th class="num">Statement amt</th><th>Ledger date</th><th>Ledger description</th><th>Reference</th><th class="num">Ledger amt</th></tr></thead>
+            <tbody id="matchedBody"></tbody>
+          </table></div>
+        </div>
+
+        <div class="tab-panel" id="panel-unmatchedBC">
+          <div class="toolbar"><span class="mini" id="unmatchedBCCount"></span><button class="ghost" id="exportUnmatchedBC">Export CSV</button></div>
+          <div class="mini" style="margin-bottom:8px;">Posted in the ledger but not found on this statement. Check the card, the date range, or a possible duplicate posting.</div>
+          <div class="table-wrap short"><table>
+            <thead><tr><th>Date</th><th>Description</th><th>Reference</th><th class="num">Amount</th></tr></thead>
+            <tbody id="unmatchedBCBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <details class="panel advanced" id="reviewPanel" style="margin-top:0;">
+        <summary>Review / edit extracted statement rows</summary>
+        <div style="padding-top:14px;">
+          <div class="toolbar">
+            <span class="mini" id="pdfCount">0 rows extracted</span>
+            <div style="display:flex;gap:6px;">
+              <button class="ghost" id="pdfAddRow">+ Add row</button>
+              <button class="ghost" id="rerunBtn">Re-run reconciliation</button>
+            </div>
+          </div>
+          <div class="table-wrap short">
+            <table>
+              <thead><tr><th style="width:100px;">Date</th><th>Description</th><th style="width:110px;">Amount</th><th style="width:30px;"></th></tr></thead>
+              <tbody id="pdfTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    </div>
+  </main>
+
+  <footer>Runs entirely client-side (PDF.js + SheetJS) · no data leaves your browser · re-run each statement cycle with new files.</footer>
+</div>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -434,6 +527,7 @@ let bcWorkbookRows = [];
 let bcHeaders = [];
 let currentWorkbook = null;
 let pdfFileChosen = false;
+let statementDate = null;
 let xlsxFileChosen = false;
 
 function parseAmount(str){
@@ -636,12 +730,14 @@ function buildBcRows(){
 // dates without a year, cardholder blocks, and foreign-currency charges whose USD amount
 // can fall on a later line.
 function parseElanLines(lines){
+  statementDate = null;
   let stmtDate = null;
   for(const line of lines){
     const m = line.match(/Statement Date\s*:\s*(\d{1,2})-(\d{1,2})-(\d{4})/i);
     if(m){ stmtDate = new Date(+m[3], +m[1]-1, +m[2]); break; }
   }
   if(!stmtDate) return [];
+  statementDate = stmtDate;
 
   const toDate = (mm, dd)=>{
     let d = new Date(stmtDate.getFullYear(), +mm-1, +dd);
@@ -851,32 +947,232 @@ function runMatch(){
   }
   const unmatchedStatement = pdfRows.filter((_,i)=>!sUsed.has(i));
   const unmatchedBC = bcRows.filter((_,i)=>!bUsed.has(i));
-  renderResults(matched, unmatchedStatement, unmatchedBC);
+  runMatchAndRender(matched, unmatchedStatement, unmatchedBC);
 }
 
-function renderResults(matched, unmatchedStatement, unmatchedBC){
-  const stmtTotal = pdfRows.reduce((s,r)=>s+r.amount,0);
-  const bcTotal = bcRows.reduce((s,r)=>s+r.amount,0);
-  const diff = stmtTotal - bcTotal;
-  const balanced = Math.abs(diff) <= 0.01;
+const NO_HOLDER = '(No cardholder)';
+const UNASSIGNED = '(Unassigned)';
+const STATUS = {
+  done:    {label:'Submitted',     cls:'good', icon:'<path d="M5 12l4 4L19 6"/>'},
+  partial: {label:'Partial',       cls:'warn', icon:'<path d="M12 7v6"/><path d="M12 17h.01"/>'},
+  none:    {label:'Not submitted', cls:'bad',  icon:'<path d="M7 7l10 10M17 7L7 17"/>'}
+};
+const STATUS_ORDER = {none:0, partial:1, done:2};
 
-  document.getElementById('ledgerStmtTotal').textContent = '$' + fmtAmt(stmtTotal);
-  document.getElementById('ledgerBcTotal').textContent = '$' + fmtAmt(bcTotal);
-  const diffEl = document.getElementById('ledgerDiff');
-  diffEl.textContent = (diff<0?'-':'') + '$' + fmtAmt(Math.abs(diff));
-  diffEl.className = 'v ' + (balanced ? 'diff-ok' : 'diff-bad');
+let recon = null;          // {matched, unmatchedStatement, unmatchedBC}
+let report = [];           // one entry per cardholder
+const filters = {holder:'', status:'all'};
+let reportSort = {key:'outAmt', dir:-1};
+const openHolders = new Set();
 
-  const statusEl = document.getElementById('ledgerStatus');
-  statusEl.className = 'ledger-status ' + (balanced ? 'ok' : 'bad');
-  statusEl.innerHTML = `<span class="dot"></span>${balanced ? 'Balanced' : 'Out of balance'}`;
+function holderOf(r){ return r.cardholder || NO_HOLDER; }
 
-  document.getElementById('summaryCards').innerHTML = `
-    <div class="count-card matched"><div class="n">${matched.length}</div><div class="l">Matched</div></div>
-    <div class="count-card rose"><div class="n">${unmatchedStatement.length}</div><div class="l">On statement, not in ledger</div></div>
-    <div class="count-card amber"><div class="n">${unmatchedBC.length}</div><div class="l">In ledger, not on statement</div></div>
-  `;
+// Ledger descriptions start with the cardholder name ("MAIT ROHTLA Taxi ..."); use the
+// longest statement cardholder name that prefixes the description.
+function ledgerHolder(desc, names){
+  const d = String(desc||'').toUpperCase();
+  let best = '';
+  names.forEach(n=>{ if(n.length > best.length && d.startsWith(n.toUpperCase())) best = n; });
+  return best || UNASSIGNED;
+}
 
-  document.getElementById('matchedCount').textContent = `${matched.length} matched pair(s)`;
+function money(n){ return (n<0?'-':'') + '$' + fmtAmt(Math.abs(n)); }
+function pct(a,b){ return b ? Math.round(a/b*100) : 0; }
+function initials(name){
+  const w = name.replace(/[^A-Za-z ]/g,'').trim().split(/\s+/);
+  return ((w[0]||'')[0]||'?') + ((w[1]||'')[0]||'');
+}
+function statusBadge(key){
+  const s = STATUS[key];
+  return `<span class="badge ${s.cls}"><svg class="i" viewBox="0 0 24 24">${s.icon}</svg>${s.label}</span>`;
+}
+
+function buildReport(matched){
+  const submitted = new Set(matched.map(m=>m.statement));
+  const by = new Map();
+  pdfRows.forEach(r=>{
+    const name = holderOf(r);
+    if(!by.has(name)) by.set(name, {name, count:0, total:0, subCount:0, subAmt:0, outCount:0, outAmt:0, missing:[]});
+    const h = by.get(name);
+    h.count++; h.total += r.amount;
+    if(submitted.has(r)){ h.subCount++; h.subAmt += r.amount; }
+    else { h.outCount++; h.outAmt += r.amount; h.missing.push(r); }
+  });
+  return [...by.values()].map(h=>{
+    h.status = h.outCount === 0 ? 'done' : (h.subCount === 0 ? 'none' : 'partial');
+    h.pct = h.count ? h.subCount / h.count : 0;
+    return h;
+  });
+}
+
+function runMatchAndRender(matched, unmatchedStatement, unmatchedBC){
+  const names = [...new Set(pdfRows.map(r=>r.cardholder).filter(Boolean))];
+  unmatchedBC.forEach(r=>{ r.holder = ledgerHolder(r.desc, names); });
+  recon = {matched, unmatchedStatement, unmatchedBC};
+  report = buildReport(matched);
+
+  const sel = document.getElementById('holderFilter');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">All cardholders</option>' +
+    report.map(h=>h.name).sort().map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  sel.value = report.some(h=>h.name===keep) ? keep : '';
+  filters.holder = sel.value;
+
+  if(statementDate){
+    document.getElementById('stmtDateText').textContent = fmtDate(statementDate);
+    document.getElementById('stmtChip').style.display = '';
+  }
+  const outstanding = report.filter(h=>h.status!=='done').length;
+  const pill = document.getElementById('navOutstanding');
+  pill.textContent = outstanding || '✓';
+  pill.className = 'pill' + (outstanding ? '' : ' ok');
+
+  renderPdfTable();
+  renderAll();
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsWrap').style.display = 'block';
+}
+
+function holderPass(name){ return !filters.holder || name === filters.holder; }
+
+function visibleReport(){
+  return report.filter(h=> holderPass(h.name) && (filters.status==='all' || h.status===filters.status));
+}
+
+function renderAll(){
+  const vis = visibleReport();
+  const visNames = new Set(vis.map(h=>h.name));
+  renderStats(vis);
+  renderBreakdown();
+  renderReportTable(vis);
+  renderTransactions(visNames);
+}
+
+function renderStats(vis){
+  const sum = (k)=> vis.reduce((s,h)=>s+h[k],0);
+  const total = sum('total'), sub = sum('subAmt'), out = sum('outAmt');
+  const count = sum('count'), subC = sum('subCount'), outC = sum('outCount');
+  const outstanding = vis.filter(h=>h.status!=='done').length;
+
+  document.getElementById('statTotal').textContent = money(total);
+  document.getElementById('statTotalFoot').textContent = `${count} charge${count===1?'':'s'} · ${vis.length} cardholder${vis.length===1?'':'s'}`;
+  document.getElementById('statChargesRibbon').textContent = count;
+
+  document.getElementById('statSub').textContent = money(sub);
+  document.getElementById('statSubFoot').textContent = `${subC} charge${subC===1?'':'s'} found in the ledger`;
+  document.getElementById('statSubRibbon').textContent = pct(subC, count) + '%';
+
+  document.getElementById('statOut').textContent = money(out);
+  document.getElementById('statOutFoot').textContent = `${outC} charge${outC===1?'':'s'} still missing`;
+  document.getElementById('statOutRibbon').textContent = pct(outC, count) + '%';
+
+  document.getElementById('statHolders').textContent = `${outstanding} of ${vis.length}`;
+  document.getElementById('statHoldersFoot').textContent = outstanding ? 'Have charges to submit' : 'Everyone is up to date';
+  document.getElementById('statHoldersRibbon').textContent = pct(outstanding, vis.length) + '%';
+}
+
+// The breakdown ignores the status filter (it is the status filter's legend) but
+// respects the cardholder filter.
+function renderBreakdown(){
+  const scope = report.filter(h=>holderPass(h.name));
+  const sub = scope.reduce((s,h)=>s+h.subAmt,0);
+  const out = scope.reduce((s,h)=>s+h.outAmt,0);
+  const tot = Math.max(sub,0) + Math.max(out,0);
+  const w = v => tot ? Math.max(0, v)/tot*100 : 0;
+  document.getElementById('splitBar').innerHTML =
+    `<span style="width:${w(sub)}%;background:var(--good)" title="Submitted ${money(sub)}"></span>` +
+    `<span style="width:${w(out)}%;background:var(--bad)" title="Not submitted ${money(out)}"></span>`;
+  document.getElementById('splitLegend').innerHTML =
+    `<span><i style="background:var(--good)"></i>Submitted ${money(sub)}</span>` +
+    `<span><i style="background:var(--bad)"></i>Not submitted ${money(out)}</span>`;
+  document.getElementById('breakdownSub').textContent = filters.holder ? filters.holder : `${scope.length} cardholders by status`;
+
+  document.getElementById('breakdownRows').innerHTML = ['none','partial','done'].map(k=>{
+    const hs = scope.filter(h=>h.status===k);
+    const amt = hs.reduce((s,h)=>s+(k==='done'?h.subAmt:h.outAmt),0);
+    const s = STATUS[k];
+    return `<div class="row clickable${filters.status===k?' selected':''}" data-status="${k}" title="Show ${s.label.toLowerCase()} cardholders">
+      <div class="dot ${s.cls}"><svg class="i" viewBox="0 0 24 24">${s.icon}</svg></div>
+      <div class="t"><div class="l">${s.label}</div><div class="v">${hs.length}</div>
+      <div class="s">${k==='done' ? money(amt)+' submitted' : money(amt)+' outstanding'}</div></div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('#breakdownRows .row').forEach(row=>{
+    row.addEventListener('click', ()=> setStatusFilter(row.dataset.status));
+  });
+}
+
+function sortReport(list){
+  const {key, dir} = reportSort;
+  return [...list].sort((a,b)=>{
+    let d;
+    if(key==='name') d = a.name.localeCompare(b.name);
+    else if(key==='status') d = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+    else d = a[key] - b[key];
+    return d*dir || b.outAmt - a.outAmt || a.name.localeCompare(b.name);
+  });
+}
+
+function renderReportTable(vis){
+  document.querySelectorAll('#reportTable th.sortable').forEach(th=>{
+    th.querySelector('.arrow').textContent = th.dataset.sort===reportSort.key ? (reportSort.dir>0?'▲':'▼') : '';
+  });
+  const rows = sortReport(vis);
+  const body = document.getElementById('reportBody');
+  if(!rows.length){
+    body.innerHTML = `<tr><td colspan="7" class="empty-state">No cardholders match these filters.</td></tr>`;
+  } else {
+    body.innerHTML = rows.map(h=>{
+      const open = openHolders.has(h.name) || (filters.holder && rows.length===1);
+      const color = h.status==='done' ? 'var(--good)' : h.status==='partial' ? 'var(--warn-bar)' : 'var(--bad)';
+      const p = Math.round(h.pct*100);
+      const detail = open ? `<tr class="detail"><td colspan="7"><div class="detail-inner">${holderDetail(h)}</div></td></tr>` : '';
+      return `<tr class="holder${open?' open':''}" data-name="${escapeHtml(h.name)}">
+        <td><div class="holder-name"><span class="caret">▸</span><span class="avatar">${escapeHtml(initials(h.name))}</span>${escapeHtml(h.name)}</div></td>
+        <td class="num">${h.subCount}/${h.count}</td>
+        <td class="num">${money(h.total)}</td>
+        <td class="num amt-good">${money(h.subAmt)}</td>
+        <td class="num ${Math.abs(h.outAmt)>0.005?'amt-bad':''}">${money(h.outAmt)}</td>
+        <td><div class="meter" title="${h.subCount} of ${h.count} charges submitted"><div class="track"><div class="fill" style="width:${p}%;background:${color}"></div></div><span class="pct">${p}%</span></div></td>
+        <td>${statusBadge(h.status)}</td>
+      </tr>${detail}`;
+    }).join('');
+  }
+  body.querySelectorAll('tr.holder').forEach(tr=>{
+    tr.addEventListener('click', ()=>{
+      const n = tr.dataset.name;
+      openHolders.has(n) ? openHolders.delete(n) : openHolders.add(n);
+      renderReportTable(visibleReport());
+    });
+  });
+  const outstanding = vis.filter(h=>h.status!=='done').length;
+  document.getElementById('reportCount').textContent =
+    `${vis.length} of ${report.length} cardholder${report.length===1?'':'s'} shown · ${outstanding} with charges not yet submitted`;
+}
+
+function holderDetail(h){
+  if(!h.missing.length) return `<h4>All ${h.count} charge${h.count===1?'':'s'} submitted</h4><div class="none">Nothing outstanding for this cardholder.</div>`;
+  const prefix = h.name + ' — ';
+  return `<h4>${h.missing.length} charge${h.missing.length===1?'':'s'} not yet submitted · ${money(h.outAmt)}</h4>
+    <table><thead><tr><th>Post date</th><th>Tran date</th><th>Description</th><th class="num">Amount</th></tr></thead><tbody>` +
+    h.missing.map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${fmtDate(r.tranDate)}</td>
+      <td>${escapeHtml(r.desc.startsWith(prefix) ? r.desc.slice(prefix.length) : r.desc)}</td>
+      <td class="num">${fmtAmt(r.amount)}</td></tr>`).join('') + `</tbody></table>`;
+}
+
+function renderTransactions(visNames){
+  const d = recon;
+  const matched = d.matched.filter(m=>visNames.has(holderOf(m.statement)));
+  const unS = d.unmatchedStatement.filter(r=>visNames.has(holderOf(r)));
+  const unB = d.unmatchedBC.filter(r=>!filters.holder || r.holder===filters.holder);
+  const strip = (r)=>{ const p = holderOf(r)+' — '; return r.desc.startsWith(p) ? r.desc.slice(p.length) : r.desc; };
+
+  document.getElementById('unmatchedStatementCount').textContent = `${unS.length} charge(s) · ${money(unS.reduce((s,r)=>s+r.amount,0))}`;
+  document.getElementById('unmatchedStatementBody').innerHTML = unS.map(r => `
+    <tr><td>${fmtDate(r.date)}</td><td>${escapeHtml(holderOf(r))}</td><td>${escapeHtml(strip(r))}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
+  `).join('') || `<tr><td colspan="4" class="empty-state">Nothing outstanding.</td></tr>`;
+
+  document.getElementById('matchedCount').textContent = `${matched.length} matched charge(s)`;
   document.getElementById('matchedBody').innerHTML = matched.map(m => `
     <tr>
       <td>${fmtDate(m.statement.date)}</td>
@@ -887,24 +1183,42 @@ function renderResults(matched, unmatchedStatement, unmatchedBC){
       <td>${escapeHtml(m.bc.ref)}</td>
       <td class="num">${fmtAmt(m.bc.amount)}</td>
     </tr>
-  `).join('') || `<tr><td colspan="7" class="empty-state">No matches found.</td></tr>`;
+  `).join('') || `<tr><td colspan="7" class="empty-state">No submitted charges.</td></tr>`;
 
-  document.getElementById('unmatchedStatementCount').textContent = `${unmatchedStatement.length} row(s)`;
-  document.getElementById('unmatchedStatementBody').innerHTML = unmatchedStatement.map(r => `
-    <tr><td>${fmtDate(r.date)}</td><td>${escapeHtml(r.desc)}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
-  `).join('') || `<tr><td colspan="3" class="empty-state">Everything on the statement was matched.</td></tr>`;
-
-  document.getElementById('unmatchedBCCount').textContent = `${unmatchedBC.length} row(s)`;
-  document.getElementById('unmatchedBCBody').innerHTML = unmatchedBC.map(r => `
+  document.getElementById('unmatchedBCCount').textContent = `${unB.length} row(s)`;
+  document.getElementById('unmatchedBCBody').innerHTML = unB.map(r => `
     <tr><td>${fmtDate(r.date)}</td><td>${escapeHtml(r.desc)}</td><td>${escapeHtml(r.ref)}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
   `).join('') || `<tr><td colspan="4" class="empty-state">Every ledger posting was matched to the statement.</td></tr>`;
 
-  window._reconData = {matched, unmatchedStatement, unmatchedBC};
-  renderPdfTable();
-
-  document.getElementById('emptyState').style.display = 'none';
-  document.getElementById('resultsWrap').style.display = 'block';
+  window._reconFiltered = {matched, unmatchedStatement:unS, unmatchedBC:unB};
 }
+
+function setStatusFilter(status){
+  filters.status = status;
+  document.querySelectorAll('#statusFilter button').forEach(b=>b.classList.toggle('active', b.dataset.status===status));
+  renderAll();
+}
+
+document.getElementById('holderFilter').addEventListener('change', e=>{
+  filters.holder = e.target.value;
+  if(filters.holder) openHolders.add(filters.holder);
+  renderAll();
+});
+document.querySelectorAll('#statusFilter button').forEach(b=>{
+  b.addEventListener('click', ()=> setStatusFilter(b.dataset.status));
+});
+document.getElementById('clearFilters').addEventListener('click', ()=>{
+  document.getElementById('holderFilter').value = '';
+  filters.holder = '';
+  setStatusFilter('all');
+});
+document.querySelectorAll('#reportTable th.sortable').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const k = th.dataset.sort;
+    reportSort = reportSort.key===k ? {key:k, dir:-reportSort.dir} : {key:k, dir: k==='name' ? 1 : -1};
+    renderReportTable(visibleReport());
+  });
+});
 
 document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
   const statusEl = document.getElementById('runStatus');
@@ -948,7 +1262,7 @@ document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
   statusEl.className = 'status-line ok';
   statusEl.textContent = `Extracted ${pdfRows.length} statement row(s), loaded ${bcRows.length} ledger row(s)${res.skipped ? ` (${res.skipped} skipped)` : ''}${res.flipped ? ', ledger signs reversed to match the statement' : ''}. Matched on amount + date (±${document.getElementById('dateTolerance').value || 0} days).`;
   btn.disabled = false;
-  document.getElementById('resultsWrap').scrollIntoView({behavior:'smooth', block:'start'});
+  document.getElementById('filterBar').scrollIntoView({behavior:'smooth', block:'start'});
 });
 
 document.getElementById('rerunBtn').addEventListener('click', ()=>{
@@ -965,23 +1279,52 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
   });
 });
 
+document.getElementById('exportReport').addEventListener('click', ()=>{
+  if(!recon) return;
+  const rows = [['Cardholder','Status','Charges','Submitted charges','Not submitted charges','Statement amount','Submitted amount','Not submitted amount']];
+  sortReport(visibleReport()).forEach(h=>rows.push([h.name, STATUS[h.status].label, h.count, h.subCount, h.outCount, h.total.toFixed(2), h.subAmt.toFixed(2), h.outAmt.toFixed(2)]));
+  downloadCsv('cardholder_submission_report.csv', rows);
+});
+document.getElementById('exportMissing').addEventListener('click', ()=>{
+  if(!recon) return;
+  const rows = [['Cardholder','Post Date','Tran Date','Reference','Description','Amount']];
+  sortReport(visibleReport()).forEach(h=>h.missing.forEach(r=>{
+    const p = h.name + ' — ';
+    rows.push([h.name, fmtDate(r.date), fmtDate(r.tranDate), r.ref||'', r.desc.startsWith(p) ? r.desc.slice(p.length) : r.desc, r.amount.toFixed(2)]);
+  }));
+  downloadCsv('charges_not_submitted.csv', rows);
+});
+document.getElementById('printReport').addEventListener('click', ()=> window.print());
+
 document.getElementById('exportMatched').addEventListener('click', ()=>{
-  const d = window._reconData; if(!d) return;
+  const d = window._reconFiltered; if(!d) return;
   const rows = [['Statement Date','Statement Description','Statement Amount','Ledger Date','Ledger Description','Reference','Ledger Amount']];
   d.matched.forEach(m=>rows.push([fmtDate(m.statement.date), m.statement.desc, m.statement.amount.toFixed(2), fmtDate(m.bc.date), m.bc.desc, m.bc.ref, m.bc.amount.toFixed(2)]));
-  downloadCsv('reconciliation_matched.csv', rows);
+  downloadCsv('reconciliation_submitted.csv', rows);
 });
 document.getElementById('exportUnmatchedStatement').addEventListener('click', ()=>{
-  const d = window._reconData; if(!d) return;
-  const rows = [['Date','Description','Amount']];
-  d.unmatchedStatement.forEach(r=>rows.push([fmtDate(r.date), r.desc, r.amount.toFixed(2)]));
-  downloadCsv('reconciliation_statement_only.csv', rows);
+  const d = window._reconFiltered; if(!d) return;
+  const rows = [['Post Date','Cardholder','Description','Amount']];
+  d.unmatchedStatement.forEach(r=>rows.push([fmtDate(r.date), holderOf(r), r.desc, r.amount.toFixed(2)]));
+  downloadCsv('reconciliation_not_submitted.csv', rows);
 });
 document.getElementById('exportUnmatchedBC').addEventListener('click', ()=>{
-  const d = window._reconData; if(!d) return;
+  const d = window._reconFiltered; if(!d) return;
   const rows = [['Date','Description','Reference','Amount']];
   d.unmatchedBC.forEach(r=>rows.push([fmtDate(r.date), r.desc, r.ref, r.amount.toFixed(2)]));
-  downloadCsv('reconciliation_bc_only.csv', rows);
+  downloadCsv('reconciliation_ledger_only.csv', rows);
+});
+
+// Sidebar: mobile toggle and active link while scrolling.
+document.getElementById('menuBtn').addEventListener('click', ()=> document.body.classList.toggle('nav-open'));
+document.getElementById('backdrop').addEventListener('click', ()=> document.body.classList.remove('nav-open'));
+document.querySelectorAll('.nav a').forEach(a=>{
+  a.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav a').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+    document.body.classList.remove('nav-open');
+    if(a.getAttribute('href')==='#reviewPanel') document.getElementById('reviewPanel').open = true;
+  });
 });
 </script>
 </body>
