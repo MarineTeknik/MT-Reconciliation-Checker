@@ -110,11 +110,6 @@
   td.amt.neg{color:var(--red);}
   td.amt.pos{color:var(--green);}
   td.ref{white-space:nowrap;color:var(--ink-soft);}
-  td.amt.muted{color:var(--ink-faint);font-weight:400;}
-  .by{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:10px;}
-  .by.reference{background:#e6f4ec;color:var(--green);}
-  .by.amount{background:#fbf1dc;color:#9a6a07;}
-  .status-line.warn{color:#9a6a07;}
   td .parts{font-size:12px;color:var(--ink-soft);}
   .empty-state{padding:30px 10px;text-align:center;color:var(--ink-faint);}
   .count-note{font-size:12px;color:var(--ink-faint);margin-top:8px;}
@@ -182,7 +177,7 @@
             <option value="flip">Reversed (charges negative)</option>
           </select>
         </div>
-        <div class="field"><label>Date tolerance (days)</label><input type="number" id="dateTolerance" value="3" min="0" max="31" style="min-width:90px;"></div>
+        <div class="field"><label>Posting date tolerance (days)</label><input type="number" id="dateTolerance" value="0" min="0" max="31" style="min-width:90px;"></div>
       </div>
     </details>
     <div class="status-line" id="runStatus"></div>
@@ -418,40 +413,6 @@ function guessColumn(selectId, keywords){
   }
 }
 
-// Statement reference numbers are long digit strings (23 digits on Elan statements).
-// Collect every such number found in any column of a ledger row (External Document
-// No., Description, ...). Excel may have stored a reference as a number, which keeps
-// only ~15 significant digits, so those are kept as a prefix to compare against.
-function extractRefs(row){
-  const refs = [];
-  Object.values(row).forEach(v=>{
-    if(typeof v === 'number'){
-      if(Math.abs(v) >= 1e14){
-        const digits = BigInt(Math.round(Math.abs(v))).toString();
-        refs.push({digits, approx: digits.length > 15});
-      }
-      return;
-    }
-    const text = String(v||'');
-    (text.match(/\d[\d\s-]{13,}\d/g) || []).forEach(m=>{
-      const digits = m.replace(/[\s-]/g,'');
-      if(digits.length >= 15) refs.push({digits, approx:false});
-    });
-    // Scientific notation text, e.g. "7.49875062390062E+22" from a numeric cell.
-    (text.match(/\d\.\d+E\+\d+/gi) || []).forEach(m=>{
-      const n = Number(m);
-      if(isFinite(n) && n >= 1e14) refs.push({digits: BigInt(Math.round(n)).toString(), approx:true});
-    });
-  });
-  return refs;
-}
-
-function refMatches(stmtRef, ledgerRef){
-  if(!stmtRef) return false;
-  if(!ledgerRef.approx) return ledgerRef.digits === stmtRef;
-  return ledgerRef.digits.length === stmtRef.length && ledgerRef.digits.slice(0,15) === stmtRef.slice(0,15);
-}
-
 function buildBcRows(){
   const dateCol = document.getElementById('mapDate').value || bcHeaders.find(h=>/posted date|posting date|date/i.test(h));
   const amtCol = document.getElementById('mapAmount').value || bcHeaders.find(h=>/amount|amt/i.test(h));
@@ -468,8 +429,7 @@ function buildBcRows(){
     bcRows.push({
       date: d, amount: a,
       desc: descCol ? String(r[descCol]||'') : '',
-      ref: refCol ? String(r[refCol]||'') : '',
-      refs: extractRefs(r)
+      ref: refCol ? String(r[refCol]||'') : ''
     });
   });
 
@@ -604,46 +564,17 @@ async function extractPdf(){
 function runMatch(){
   const tol = Math.max(0, parseInt(document.getElementById('dateTolerance').value,10) || 0);
   const dayDiff = (a,b)=> Math.round(Math.abs(a - b) / 86400000);
-  const sUsed = new Set(), bUsed = new Set();
 
-  // Pass 1 — reference number. A statement transaction whose reference number appears
-  // anywhere in a ledger row is posted, whatever the amount or date. Several ledger rows
-  // carrying the same reference (a split posting) are matched together.
-  const refMatched = [];
-  pdfRows.forEach((sRow, si)=>{
-    if(!sRow.ref) return;
-    const hits = [];
-    bcRows.forEach((bRow, bi)=>{
-      if(!bUsed.has(bi) && bRow.refs.some(r=>refMatches(sRow.ref, r))) hits.push(bi);
-    });
-    if(!hits.length) return;
-    sUsed.add(si);
-    hits.forEach(bi=>bUsed.add(bi));
-    const parts = hits.map(bi=>bcRows[bi]);
-    const amount = parts.reduce((t,p)=>t+p.amount,0);
-    refMatched.push({
-      statement: sRow, by: 'reference', diff: sRow.amount - amount,
-      split: parts.length > 1, parts,
-      bc: parts.length === 1 ? parts[0] : {
-        date: parts[0].date,
-        desc: parts.map(p=>p.desc).join(' + '),
-        ref: parts.map(p=>p.ref).join(' + '),
-        amount
-      }
-    });
-  });
-
-  // Pass 2 — rows without a usable reference: collect every same-amount pair within the date window, then pair up best-first:
+  // Match on amount + posting date: the statement's Post Date against the ledger's
+  // Posting Date (exact by default; Advanced options can allow a few days either way).
+  // Collect every same-amount pair within that window, then pair up best-first:
   // same cardholder before different cardholder, then closest date.
   const candidates = [];
   pdfRows.forEach((sRow, si)=>{
     const holder = (sRow.cardholder || '').toUpperCase();
-    if(sUsed.has(si)) return;
     bcRows.forEach((bRow, bi)=>{
-      if(bUsed.has(bi)) return;
       if(Math.abs(sRow.amount - bRow.amount) > 0.005) return;
       let dd = dayDiff(sRow.date, bRow.date);
-      if(sRow.tranDate) dd = Math.min(dd, dayDiff(sRow.tranDate, bRow.date));
       if(dd > tol) return;
       const sameHolder = holder && bRow.desc.toUpperCase().startsWith(holder) ? 0 : 1;
       candidates.push({si, bi, dd, sameHolder});
@@ -651,6 +582,7 @@ function runMatch(){
   });
   candidates.sort((a,b)=> a.sameHolder - b.sameHolder || a.dd - b.dd || a.si - b.si || a.bi - b.bi);
 
+  const sUsed = new Set(), bUsed = new Set();
   const pairs = [];
   candidates.forEach(c=>{
     if(sUsed.has(c.si) || bUsed.has(c.bi)) return;
@@ -659,7 +591,7 @@ function runMatch(){
   });
   pairs.sort((a,b)=> a.si - b.si);
 
-  const matched = refMatched.concat(pairs.map(c=>({statement: pdfRows[c.si], bc: bcRows[c.bi], by: 'amount', diff: 0})));
+  const matched = pairs.map(c=>({statement: pdfRows[c.si], bc: bcRows[c.bi]}));
 
   // Second pass: a statement charge split across two ledger postings (e.g. half deducted
   // from an employee) — two leftover ledger rows in the date window that sum to it.
@@ -670,7 +602,6 @@ function runMatch(){
       const near = leftB.filter(bi=>{
         if(bUsed.has(bi)) return false;
         let dd = dayDiff(sRow.date, bcRows[bi].date);
-        if(sRow.tranDate) dd = Math.min(dd, dayDiff(sRow.tranDate, bcRows[bi].date));
         return dd <= tol;
       });
       for(let x=0; x<near.length; x++){
@@ -678,7 +609,7 @@ function runMatch(){
           const a = bcRows[near[x]], b = bcRows[near[y]];
           if(Math.abs(a.amount + b.amount - sRow.amount) > 0.005) continue;
           sUsed.add(si); bUsed.add(near[x]); bUsed.add(near[y]);
-          matched.push({statement: sRow, by: 'amount', diff: 0, split: true, parts: [a, b], bc: {
+          matched.push({statement: sRow, split: true, parts: [a, b], bc: {
             date: a.date,
             desc: `${a.desc} + ${b.desc}`,
             ref: `${a.ref} + ${b.ref}`,
@@ -698,8 +629,7 @@ const NO_HOLDER = '(No cardholder)';
 const UNASSIGNED = '(Unassigned)';
 const COLORS = {matched:'#1e8e5a', split:'#6a4fb8', missing:'#c0392b', extra:'#d99a1c'};
 
-let data = null;
-let recon = null;       // {missing, split, extra, matched} display rows
+let data = null;       // {missing, split, extra, matched} display rows
 let activeTab = 'missing';
 const sortState = {
   missing:{key:'amount', dir:1},
@@ -729,7 +659,6 @@ function isoDate(d){
 function money(n){ return (n<0?'-':'') + '$' + fmtAmt(Math.abs(n)); }
 
 function runMatchAndRender(matched, unmatchedStatement, unmatchedBC){
-  recon = {matched, unmatchedStatement, unmatchedBC};
   const names = [...new Set(pdfRows.map(r=>r.cardholder).filter(Boolean))];
   const stmtRow = r=>({
     holder: holderOf(r), date: r.date, tranDate: r.tranDate, ref: r.ref || '',
@@ -738,15 +667,14 @@ function runMatchAndRender(matched, unmatchedStatement, unmatchedBC){
   data = {
     missing: unmatchedStatement.map(stmtRow),
     split: matched.filter(m=>m.split).map(m=>({
-      ...stmtRow(m.statement), by: m.by, diff: -(m.diff||0),
+      ...stmtRow(m.statement),
       parts: m.parts.map(p=>({ref:p.ref, desc:p.desc, date:p.date, amount:-p.amount}))
     })),
     extra: unmatchedBC.map(r=>({
       holder: ledgerHolder(r.desc, names), date: r.date, ref: r.ref, desc: r.desc, amount: -r.amount
     })),
     matched: matched.filter(m=>!m.split).map(m=>({
-      ...stmtRow(m.statement), ledgerRef: m.bc.ref, ledgerDate: m.bc.date, ledgerDesc: m.bc.desc,
-      by: m.by, diff: -(m.diff||0)
+      ...stmtRow(m.statement), ledgerRef: m.bc.ref, ledgerDate: m.bc.date, ledgerDesc: m.bc.desc
     }))
   };
 
@@ -876,13 +804,10 @@ function renderBars(missingNet, extraNet){
 /* ---------------- table ---------------- */
 
 const amtCell = v => `<td class="amt ${v<0?'neg':'pos'}">${money(v)}</td>`;
-const BY_LABEL = {reference:'Reference No.', amount:'Amount + date'};
-const byCell = r => `<td class="nowrap"><span class="by ${r.by}">${BY_LABEL[r.by]||''}</span></td>`;
-const diffCell = r => Math.abs(r.diff) < 0.005 ? '<td class="amt muted">—</td>' : `<td class="amt neg" title="Statement amount minus ledger amount">${money(r.diff)}</td>`;
 const TABLES = {
   missing: {
     title:'Missing from Excel',
-    sub:'On the statement, but its reference number was not found in the ledger (and no entry matched on amount + date). These need to be booked.',
+    sub:'On the statement, but no ledger entry (or pair of entries) with the same amount and posting date. These need to be booked.',
     cols:[
       {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
       {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
@@ -895,14 +820,13 @@ const TABLES = {
   },
   split: {
     title:'Split Matches',
-    sub:'One statement charge posted as several ledger entries — either sharing its reference number, or two entries that add up to its amount.',
+    sub:'One statement charge that matches two ledger entries added together (e.g. a cost split with an employee deduction).',
     cols:[
       {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
       {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
       {key:'ref', label:'Reference Number', cell:r=>`<td class="ref">${escapeHtml(r.ref)}</td>`},
       {key:'desc', label:'Transaction Description', cell:r=>`<td>${escapeHtml(r.desc)}</td>`},
       {key:'amount', label:'Amount', cell:r=>amtCell(r.amount)},
-      {key:'by', label:'Matched By', cell:byCell},
       {key:'parts', label:'Ledger Entries', sortVal:r=>r.parts.length, cell:r=>`<td>${r.parts.map(p=>
         `<div class="parts"><b>${escapeHtml(p.ref)}</b> · ${money(p.amount)} · ${escapeHtml(p.desc)}</div>`).join('')}</td>`}
     ]
@@ -920,15 +844,13 @@ const TABLES = {
   },
   matched: {
     title:'Matched',
-    sub:'Statement transactions matched to one ledger entry — by reference number, or by amount + date when the ledger row has no reference.',
+    sub:'Statement transactions matched one-to-one to a ledger entry.',
     cols:[
       {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
       {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
       {key:'ref', label:'Reference Number', cell:r=>`<td class="ref">${escapeHtml(r.ref)}</td>`},
       {key:'desc', label:'Transaction Description', cell:r=>`<td>${escapeHtml(r.desc)}</td>`},
       {key:'amount', label:'Amount', cell:r=>amtCell(r.amount)},
-      {key:'by', label:'Matched By', cell:byCell},
-      {key:'diff', label:'Difference', cell:diffCell},
       {key:'ledgerRef', label:'Ledger Document No.', cell:r=>`<td class="ref">${escapeHtml(r.ledgerRef)}</td>`},
       {key:'ledgerDate', label:'Ledger Date', cell:r=>`<td class="nowrap">${isoDate(r.ledgerDate)}</td>`}
     ]
@@ -1020,8 +942,6 @@ document.getElementById('downloadReport').addEventListener('click', ()=>{
       if(v instanceof Date) return isoDate(v);
       if(c.key==='amount') return +v.toFixed(2);
       if(c.key==='credit') return v ? 'Yes' : 'No';
-      if(c.key==='by') return BY_LABEL[v] || '';
-      if(c.key==='diff') return +(+v||0).toFixed(2);
       return v == null ? '' : v;
     }).concat(tab==='split' ? [r.parts.map(p=>`${p.ref} (${money(p.amount)})`).join('; ')] : []));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([head, ...rows]), name);
@@ -1073,14 +993,9 @@ document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
     return;
   }
   runMatch();
-  const byRef = recon.matched.filter(m=>m.by==='reference').length;
-  const byAmt = recon.matched.length - byRef;
-  const withRefs = bcRows.filter(r=>r.refs.length).length;
-  statusEl.className = 'status-line' + (withRefs ? '' : ' warn');
+  const tolDays = parseInt(document.getElementById('dateTolerance').value,10) || 0;
   statusEl.textContent = `Done — ${pdfRows.length} statement transactions vs ${bcRows.length} ledger rows. ` +
-    `${byRef} matched by reference number, ${byAmt} by amount + date.` +
-    (withRefs ? '' : ' No statement reference numbers were found in any ledger column, so everything fell back to amount + date — ' +
-      'check that the export includes the column holding the reference number (e.g. External Document No.).');
+    `Matched on amount + posting date${tolDays ? ` (±${tolDays} day${tolDays===1?'':'s'})` : ''}.`;
   btn.disabled = false;
 });
 </script>
