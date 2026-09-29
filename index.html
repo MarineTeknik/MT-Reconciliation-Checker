@@ -110,7 +110,8 @@
   td.amt.neg{color:var(--red);}
   td.amt.pos{color:var(--green);}
   td.ref{white-space:nowrap;color:var(--ink-soft);}
-  td.far{color:#9a6a07;font-weight:600;}
+  td.reason{font-size:12.5px;color:var(--ink-soft);min-width:220px;}
+  td.reason.hint{color:#9a6a07;font-weight:600;}
   td .parts{font-size:12px;color:var(--ink-soft);}
   .empty-state{padding:30px 10px;text-align:center;color:var(--ink-faint);}
   .count-note{font-size:12px;color:var(--ink-faint);margin-top:8px;}
@@ -173,12 +174,10 @@
         <div class="field">
           <label>Ledger amount sign</label>
           <select id="ledgerSign">
-            <option value="auto">Auto-detect</option>
+            <option value="flip">Opposite of statement (default)</option>
             <option value="same">Same as statement</option>
-            <option value="flip">Reversed (charges negative)</option>
           </select>
         </div>
-        <div class="field"><label>Max days between dates</label><input type="number" id="dateTolerance" value="" min="0" max="366" placeholder="No limit" style="min-width:110px;"></div>
       </div>
     </details>
     <div class="status-line" id="runStatus"></div>
@@ -400,25 +399,47 @@ function populateSheetColumns(sheetName){
       sel.appendChild(opt);
     });
   });
-  guessColumn('mapDate', ['posted date','posting date','date']);
-  guessColumn('mapAmount', ['amount','amt']);
-  guessColumn('mapDesc', ['merchant','description','vendor','employee']);
-  guessColumn('mapRef', ['bc posting no','posting no','document no','reference','ref']);
+  guessColumn('mapDate', COLUMN_KEYWORDS.date);
+  guessColumn('mapAmount', COLUMN_KEYWORDS.amount);
+  guessColumn('mapDesc', COLUMN_KEYWORDS.desc);
+  guessColumn('mapRef', COLUMN_KEYWORDS.ref);
+}
+
+const COLUMN_KEYWORDS = {
+  date:   ['posting date','posted date','post date','date'],
+  amount: ['amount','amt'],
+  desc:   ['description','merchant','vendor','employee'],
+  ref:    ['document no','posting no','reference','ref']
+};
+const normHeader = h => String(h).replace(/\s+/g,' ').trim().toLowerCase();
+
+// Pick a ledger column: keywords in priority order, an exact header name before a
+// partial one — so "Amount" wins over "Debit Amount" and "Posting Date" over "Document Date".
+function pickColumn(keywords){
+  for(const k of keywords){
+    const exact = bcHeaders.find(h=> normHeader(h) === k);
+    if(exact) return exact;
+  }
+  for(const k of keywords){
+    const part = bcHeaders.find(h=> normHeader(h).includes(k));
+    if(part) return part;
+  }
+  return undefined;
 }
 
 function guessColumn(selectId, keywords){
-  const sel = document.getElementById(selectId);
-  for(const h of bcHeaders){
-    const low = h.toLowerCase();
-    if(keywords.some(k => low.includes(k))){ sel.value = h; return; }
-  }
+  const h = pickColumn(keywords);
+  if(h) document.getElementById(selectId).value = h;
 }
 
+let lastColumns = {};
+
 function buildBcRows(){
-  const dateCol = document.getElementById('mapDate').value || bcHeaders.find(h=>/posted date|posting date|date/i.test(h));
-  const amtCol = document.getElementById('mapAmount').value || bcHeaders.find(h=>/amount|amt/i.test(h));
-  const descCol = document.getElementById('mapDesc').value || bcHeaders.find(h=>/merchant|description|vendor|employee/i.test(h));
-  const refCol = document.getElementById('mapRef').value || bcHeaders.find(h=>/posting no|document no|reference|ref/i.test(h));
+  const dateCol = document.getElementById('mapDate').value || pickColumn(COLUMN_KEYWORDS.date);
+  const amtCol = document.getElementById('mapAmount').value || pickColumn(COLUMN_KEYWORDS.amount);
+  const descCol = document.getElementById('mapDesc').value || pickColumn(COLUMN_KEYWORDS.desc);
+  const refCol = document.getElementById('mapRef').value || pickColumn(COLUMN_KEYWORDS.ref);
+  lastColumns = {dateCol, amtCol};
 
   bcRows = [];
   if(!dateCol || !amtCol) return {ok:false};
@@ -437,9 +458,8 @@ function buildBcRows(){
   // A bank-account ledger usually records card charges as negative amounts while the
   // statement shows them positive. Put the ledger on the statement's sign convention.
   const mode = document.getElementById('ledgerSign').value;
-  const stmtSum = pdfRows.reduce((s,r)=>s+r.amount,0);
-  const bcSum = bcRows.reduce((s,r)=>s+r.amount,0);
-  const flip = mode === 'flip' || (mode === 'auto' && stmtSum * bcSum < 0);
+  // Excel amounts carry the opposite sign of the PDF (a 28.07 charge is -28.07 in BC).
+  const flip = mode !== 'same';
   if(flip) bcRows.forEach(r=>{ r.amount = -r.amount; });
   return {ok:true, skipped, flipped:flip};
 }
@@ -563,33 +583,25 @@ async function extractPdf(){
 }
 
 function runMatch(){
-  // Optional cap on how far apart the dates may be; blank = no limit.
-  const tolRaw = document.getElementById('dateTolerance').value.trim();
-  const tol = tolRaw === '' ? Infinity : Math.max(0, parseInt(tolRaw,10) || 0);
-  const dayDiff = (a,b)=> Math.round(Math.abs(a - b) / 86400000);
-  // Days between a statement line and a ledger posting: the closer of its post and
-  // transaction dates, since the ledger may be booked on either (or later, in a batch).
-  const gap = (sRow, bRow)=> sRow.tranDate
-    ? Math.min(dayDiff(sRow.date, bRow.date), dayDiff(sRow.tranDate, bRow.date))
-    : dayDiff(sRow.date, bRow.date);
-  const holderOfRow = sRow => (sRow.cardholder || '').toUpperCase();
+  // The rule: PDF "Post Date" = Excel "Posting Date", and PDF Amount = Excel Amount with
+  // the opposite sign (Excel amounts are already flipped onto the PDF's sign in buildBcRows).
+  const sameDay = (a,b)=> a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  const sameAmt = (a,b)=> Math.abs(a - b) < 0.005;
   const sameHolder = (sRow, bRow)=> {
-    const h = holderOfRow(sRow);
+    const h = (sRow.cardholder || '').toUpperCase();
     return !!h && bRow.desc.toUpperCase().startsWith(h);
   };
 
-  // Amount decides the match. When several lines share an amount, pair them up
-  // best-first: same cardholder before different cardholder, then the closest date.
+  // Several lines can share a date and amount (e.g. UK ETA fees); pair those up with
+  // the same cardholder first, then in order.
   const candidates = [];
   pdfRows.forEach((sRow, si)=>{
     bcRows.forEach((bRow, bi)=>{
-      if(Math.abs(sRow.amount - bRow.amount) > 0.005) return;
-      const dd = gap(sRow, bRow);
-      if(dd > tol) return;
-      candidates.push({si, bi, dd, other: sameHolder(sRow, bRow) ? 0 : 1});
+      if(!sameAmt(sRow.amount, bRow.amount) || !sameDay(sRow.date, bRow.date)) return;
+      candidates.push({si, bi, other: sameHolder(sRow, bRow) ? 0 : 1});
     });
   });
-  candidates.sort((a,b)=> a.other - b.other || a.dd - b.dd || a.si - b.si || a.bi - b.bi);
+  candidates.sort((a,b)=> a.other - b.other || a.si - b.si || a.bi - b.bi);
 
   const sUsed = new Set(), bUsed = new Set();
   const pairs = [];
@@ -599,41 +611,48 @@ function runMatch(){
     pairs.push(c);
   });
   pairs.sort((a,b)=> a.si - b.si);
+  const matched = pairs.map(c=>({statement: pdfRows[c.si], bc: bcRows[c.bi]}));
 
-  const matched = pairs.map(c=>({statement: pdfRows[c.si], bc: bcRows[c.bi], days: c.dd}));
-
-  // Second pass: a statement charge split across two ledger postings (e.g. half deducted
-  // from an employee) — two leftover ledger rows that add up to it, at least one of them
-  // booked to the same cardholder. Closest dates win.
+  // Split postings: two leftover Excel lines with the same Posting Date that together
+  // equal the PDF amount (e.g. half booked as an employee deduction).
   const leftB = bcRows.map((r,i)=>i).filter(i=>!bUsed.has(i));
-  if(leftB.length <= 400){
-    pdfRows.forEach((sRow, si)=>{
-      if(sUsed.has(si)) return;
-      let best = null;
-      for(let x=0; x<leftB.length; x++){
-        if(bUsed.has(leftB[x])) continue;
-        const a = bcRows[leftB[x]];
-        for(let y=x+1; y<leftB.length; y++){
-          if(bUsed.has(leftB[y])) continue;
-          const b = bcRows[leftB[y]];
-          if(Math.abs(a.amount + b.amount - sRow.amount) > 0.005) continue;
-          if(!sameHolder(sRow, a) && !sameHolder(sRow, b)) continue;
-          const dd = Math.max(gap(sRow, a), gap(sRow, b));
-          if(dd > tol) continue;
-          if(!best || dd < best.dd) best = {x:leftB[x], y:leftB[y], dd};
-        }
+  pdfRows.forEach((sRow, si)=>{
+    if(sUsed.has(si)) return;
+    const sameDate = leftB.filter(bi=> !bUsed.has(bi) && sameDay(sRow.date, bcRows[bi].date));
+    for(let x=0; x<sameDate.length; x++){
+      for(let y=x+1; y<sameDate.length; y++){
+        const a = bcRows[sameDate[x]], b = bcRows[sameDate[y]];
+        if(!sameAmt(a.amount + b.amount, sRow.amount)) continue;
+        sUsed.add(si); bUsed.add(sameDate[x]); bUsed.add(sameDate[y]);
+        matched.push({statement: sRow, split: true, parts: [a, b], bc: {
+          date: a.date, desc: `${a.desc} + ${b.desc}`, ref: `${a.ref} + ${b.ref}`, amount: a.amount + b.amount
+        }});
+        return;
       }
-      if(!best) return;
-      const a = bcRows[best.x], b = bcRows[best.y];
-      sUsed.add(si); bUsed.add(best.x); bUsed.add(best.y);
-      matched.push({statement: sRow, split: true, parts: [a, b], days: best.dd, bc: {
-        date: a.date,
-        desc: `${a.desc} + ${b.desc}`,
-        ref: `${a.ref} + ${b.ref}`,
-        amount: a.amount + b.amount
-      }});
-    });
-  }
+    }
+  });
+
+  // Explain every PDF line left unmatched, so a wrong date or amount is easy to spot.
+  pdfRows.forEach((sRow, si)=>{
+    if(sUsed.has(si)){ sRow.reason = ''; return; }
+    const freeSameAmt = bcRows.filter((b,bi)=> !bUsed.has(bi) && sameAmt(b.amount, sRow.amount));
+    const anySameAmt = bcRows.filter(b=> sameAmt(b.amount, sRow.amount));
+    const sameDayHolder = bcRows.filter((b,bi)=> !bUsed.has(bi) && sameDay(b.date, sRow.date) && sameHolder(sRow, b));
+    const oppSign = bcRows.filter((b,bi)=> !bUsed.has(bi) && sameAmt(b.amount, -sRow.amount) && sameDay(b.date, sRow.date));
+    if(freeSameAmt.length){
+      const dates = [...new Set(freeSameAmt.map(b=>isoDate(b.date)))].slice(0,3).join(', ');
+      sRow.reason = `Amount is in Excel, but Posting Date is ${dates}`;
+    } else if(oppSign.length){
+      sRow.reason = 'Same date and amount in Excel, but with the same sign as the PDF (should be opposite)';
+    } else if(anySameAmt.length){
+      sRow.reason = `Amount is in Excel (${isoDate(anySameAmt[0].date)}), but already matched to another PDF line`;
+    } else if(sameDayHolder.length){
+      const amts = sameDayHolder.slice(0,3).map(b=>money(-b.amount)).join(', ');
+      sRow.reason = `Cardholder has Excel lines on this date, but for ${amts}`;
+    } else {
+      sRow.reason = 'Not in Excel';
+    }
+  });
   const unmatchedStatement = pdfRows.filter((_,i)=>!sUsed.has(i));
   const unmatchedBC = bcRows.filter((_,i)=>!bUsed.has(i));
   runMatchAndRender(matched, unmatchedStatement, unmatchedBC);
@@ -675,6 +694,7 @@ function money(n){ return (n<0?'-':'') + '$' + fmtAmt(Math.abs(n)); }
 function runMatchAndRender(matched, unmatchedStatement, unmatchedBC){
   const names = [...new Set(pdfRows.map(r=>r.cardholder).filter(Boolean))];
   const stmtRow = r=>({
+    reason: r.reason || '',
     holder: holderOf(r), date: r.date, tranDate: r.tranDate, ref: r.ref || '',
     desc: descOnly(r), amount: -r.amount, credit: r.amount < 0
   });
@@ -688,7 +708,7 @@ function runMatchAndRender(matched, unmatchedStatement, unmatchedBC){
       holder: ledgerHolder(r.desc, names), date: r.date, ref: r.ref, desc: r.desc, amount: -r.amount
     })),
     matched: matched.filter(m=>!m.split).map(m=>({
-      ...stmtRow(m.statement), ledgerRef: m.bc.ref, ledgerDate: m.bc.date, ledgerDesc: m.bc.desc, days: m.days
+      ...stmtRow(m.statement), ledgerRef: m.bc.ref, ledgerDate: m.bc.date, ledgerDesc: m.bc.desc
     }))
   };
 
@@ -821,7 +841,7 @@ const amtCell = v => `<td class="amt ${v<0?'neg':'pos'}">${money(v)}</td>`;
 const TABLES = {
   missing: {
     title:'Missing from Excel',
-    sub:'On the statement, but no ledger entry (or pair of entries) with the same amount. These need to be booked.',
+    sub:'No Excel line with the same Posting Date and the opposite amount. "Why Not Matched" shows what the Excel file has instead.',
     cols:[
       {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
       {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
@@ -829,12 +849,13 @@ const TABLES = {
       {key:'ref', label:'Reference Number', cell:r=>`<td class="ref">${escapeHtml(r.ref)}</td>`},
       {key:'desc', label:'Transaction Description', cell:r=>`<td>${escapeHtml(r.desc)}</td>`},
       {key:'amount', label:'Amount', cell:r=>amtCell(r.amount)},
-      {key:'credit', label:'Is Credit', cell:r=>`<td>${r.credit?'Yes':'No'}</td>`}
+      {key:'credit', label:'Is Credit', cell:r=>`<td>${r.credit?'Yes':'No'}</td>`},
+      {key:'reason', label:'Why Not Matched', cell:r=>`<td class="reason${r.reason==='Not in Excel'?'':' hint'}">${escapeHtml(r.reason)}</td>`}
     ]
   },
   split: {
     title:'Split Matches',
-    sub:'One statement charge that matches two ledger entries added together (e.g. a cost split with an employee deduction).',
+    sub:'One PDF line that equals two Excel lines on the same Posting Date added together (e.g. a cost split with an employee deduction).',
     cols:[
       {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
       {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
@@ -858,7 +879,7 @@ const TABLES = {
   },
   matched: {
     title:'Matched',
-    sub:'Statement transactions matched to a ledger entry with the same amount. Days Apart shows how far apart the statement and ledger posting dates are.',
+    sub:'PDF Post Date equals Excel Posting Date, and the amounts are equal with opposite signs.',
     cols:[
       {key:'holder', label:'Cardholder', cell:r=>`<td class="nowrap">${escapeHtml(r.holder)}</td>`},
       {key:'date', label:'Post Date', cell:r=>`<td class="nowrap">${isoDate(r.date)}</td>`},
@@ -866,8 +887,7 @@ const TABLES = {
       {key:'desc', label:'Transaction Description', cell:r=>`<td>${escapeHtml(r.desc)}</td>`},
       {key:'amount', label:'Amount', cell:r=>amtCell(r.amount)},
       {key:'ledgerRef', label:'Ledger Document No.', cell:r=>`<td class="ref">${escapeHtml(r.ledgerRef)}</td>`},
-      {key:'ledgerDate', label:'Ledger Posting Date', cell:r=>`<td class="nowrap">${isoDate(r.ledgerDate)}</td>`},
-      {key:'days', label:'Days Apart', cell:r=>`<td class="nowrap${r.days>7?' far':''}">${r.days}</td>`}
+      {key:'ledgerDate', label:'Excel Posting Date', cell:r=>`<td class="nowrap">${isoDate(r.ledgerDate)}</td>`}
     ]
   }
 };
@@ -1008,10 +1028,8 @@ document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
     return;
   }
   runMatch();
-  const tolRaw = document.getElementById('dateTolerance').value.trim();
   statusEl.textContent = `Done — ${pdfRows.length} statement transactions vs ${bcRows.length} ledger rows. ` +
-    `Matched on amount; posting date and cardholder decide between equal amounts` +
-    (tolRaw !== '' ? ` (dates at most ${tolRaw} day${tolRaw==='1'?'':'s'} apart).` : '.');
+    `Rule: PDF Post Date = Excel "${lastColumns.dateCol}", PDF Amount = −Excel "${lastColumns.amtCol}".`;
   btn.disabled = false;
 });
 </script>
