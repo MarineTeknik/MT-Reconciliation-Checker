@@ -324,6 +324,15 @@
         <div class="field"><label>Amount column</label><select id="mapAmount"><option value="">— auto —</option></select></div>
         <div class="field"><label>Description column</label><select id="mapDesc"><option value="">— auto —</option></select></div>
         <div class="field"><label>Reference column</label><select id="mapRef"><option value="">— auto —</option></select></div>
+        <div class="field">
+          <label>Ledger amount sign</label>
+          <select id="ledgerSign">
+            <option value="auto">Auto-detect</option>
+            <option value="same">Same as statement</option>
+            <option value="flip">Reversed (charges negative)</option>
+          </select>
+        </div>
+        <div class="field"><label>Date tolerance (days)</label><input type="number" id="dateTolerance" value="3" min="0" max="31" style="min-width:90px;"></div>
       </div>
     </details>
 
@@ -417,7 +426,7 @@
 <footer>Runs entirely client-side (PDF.js + SheetJS) · no data leaves your browser · re-run each statement cycle with new files.</footer>
 
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 let pdfRows = [];
 let bcRows = [];
@@ -478,6 +487,10 @@ function fmtAmt(n){
   return n.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
+function escapeHtml(v){
+  return String(v===undefined||v===null ? '' : v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 function csvEscape(v){
   v = (v===undefined||v===null) ? '' : String(v);
   if(/[",\n]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
@@ -502,6 +515,7 @@ function wireDropzone(zoneId, inputId, textId, onFile){
   const input = document.getElementById(inputId);
   const textEl = document.getElementById(textId);
   zone.addEventListener('click', ()=> input.click());
+  input.addEventListener('click', e=> e.stopPropagation());
   input.addEventListener('change', ()=>{
     if(input.files.length){
       zone.classList.add('has-file');
@@ -535,9 +549,14 @@ wireDropzone('xlsxDropzone','xlsxFile','xlsxDzText', (file)=>{
   updateRunButton();
 });
 
+let workbookPromise = null;
+
 function loadWorkbook(file){
-  file.arrayBuffer().then(buf=>{
-    currentWorkbook = XLSX.read(buf, {type:'array', cellDates:true});
+  currentWorkbook = null;
+  workbookPromise = file.arrayBuffer().then(buf=>{
+    // No cellDates: date cells stay Excel serial numbers, which parseDateFlexible
+    // converts exactly (JS Date conversion can shift a day across time zones).
+    currentWorkbook = XLSX.read(buf, {type:'array'});
     const sheetSelect = document.getElementById('sheetSelect');
     sheetSelect.innerHTML = '';
     currentWorkbook.SheetNames.forEach(name=>{
@@ -556,7 +575,7 @@ document.getElementById('sheetSelect').addEventListener('change', e=>{
 
 function populateSheetColumns(sheetName){
   const ws = currentWorkbook.Sheets[sheetName];
-  const json = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false, dateNF:'mm/dd/yyyy'});
+  const json = XLSX.utils.sheet_to_json(ws, {defval:'', raw:true});
   bcWorkbookRows = json;
   bcHeaders = json.length ? Object.keys(json[0]) : [];
 
@@ -602,7 +621,78 @@ function buildBcRows(){
       ref: refCol ? String(r[refCol]||'') : ''
     });
   });
-  return {ok:true, skipped};
+
+  // A bank-account ledger usually records card charges as negative amounts while the
+  // statement shows them positive. Put the ledger on the statement's sign convention.
+  const mode = document.getElementById('ledgerSign').value;
+  const stmtSum = pdfRows.reduce((s,r)=>s+r.amount,0);
+  const bcSum = bcRows.reduce((s,r)=>s+r.amount,0);
+  const flip = mode === 'flip' || (mode === 'auto' && stmtSum * bcSum < 0);
+  if(flip) bcRows.forEach(r=>{ r.amount = -r.amount; });
+  return {ok:true, skipped, flipped:flip};
+}
+
+// Elan / Corporate Payment Systems statements: "MM-DD MM-DD <ref no> DESCRIPTION 12.34 [CR]",
+// dates without a year, cardholder blocks, and foreign-currency charges whose USD amount
+// can fall on a later line.
+function parseElanLines(lines){
+  let stmtDate = null;
+  for(const line of lines){
+    const m = line.match(/Statement Date\s*:\s*(\d{1,2})-(\d{1,2})-(\d{4})/i);
+    if(m){ stmtDate = new Date(+m[3], +m[1]-1, +m[2]); break; }
+  }
+  if(!stmtDate) return [];
+
+  const toDate = (mm, dd)=>{
+    let d = new Date(stmtDate.getFullYear(), +mm-1, +dd);
+    if(d - stmtDate > 31*86400000) d = new Date(stmtDate.getFullYear()-1, +mm-1, +dd);
+    return d;
+  };
+  const amtOf = (s, cr)=>{
+    const n = parseAmount(s);
+    return cr ? -n : n;
+  };
+
+  const startRe = /^(\d{2})-(\d{2})\s+(\d{2})-(\d{2})\s+(\d{15,})\s+(.*)$/;
+  const trailAmtRe = /\s(\d{1,3}(?:,\d{3})*\.\d{2})(\s*CR)?$/;
+  const soloAmtRe = /^(\d{1,3}(?:,\d{3})*\.\d{2})(\s*CR)?$/;
+
+  const rows = [];
+  let cardholder = '';
+  let pending = null;
+  lines.forEach((line, i)=>{
+    if(/Account Number:\s*\d{4}/.test(line) && i > 0){
+      cardholder = lines[i-1].replace(/\s+Purchases\b.*$/,'').trim();
+    }
+    const m = line.match(startRe);
+    if(m){
+      pending = null;
+      let rest = m[6];
+      const a = rest.match(trailAmtRe);
+      const row = {
+        date: toDate(m[1], m[2]),
+        tranDate: toDate(m[3], m[4]),
+        ref: m[5],
+        cardholder,
+        desc: '',
+        amount: NaN
+      };
+      if(a){
+        row.amount = amtOf(a[1], a[2]);
+        rest = rest.slice(0, a.index);
+      } else {
+        pending = row;
+      }
+      row.desc = (cardholder ? cardholder + ' — ' : '') + rest.trim();
+      rows.push(row);
+      return;
+    }
+    if(pending){
+      const a = line.match(soloAmtRe);
+      if(a){ pending.amount = amtOf(a[1], a[2]); pending = null; }
+    }
+  });
+  return rows.filter(r=>!isNaN(r.amount) && r.amount !== 0);
 }
 
 async function extractPdf(){
@@ -616,18 +706,25 @@ async function extractPdf(){
   for(let p=1; p<=pdf.numPages; p++){
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-    const byY = {};
-    content.items.forEach(item=>{
-      const y = Math.round(item.transform[5]);
-      if(!byY[y]) byY[y] = [];
-      byY[y].push(item);
+    // Group text items into lines, allowing a little baseline jitter between columns.
+    const items = content.items.filter(i=>i.str && i.str.trim()).sort((a,b)=>b.transform[5]-a.transform[5]);
+    const groups = [];
+    items.forEach(item=>{
+      const y = item.transform[5];
+      const g = groups[groups.length-1];
+      if(g && Math.abs(g.y - y) <= 2) g.items.push(item);
+      else groups.push({y, items:[item]});
     });
-    const ys = Object.keys(byY).map(Number).sort((a,b)=>b-a);
-    ys.forEach(y=>{
-      const lineItems = byY[y].sort((a,b)=>a.transform[4]-b.transform[4]);
-      const text = lineItems.map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+    groups.forEach(g=>{
+      const text = g.items.sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
       if(text) lines.push(text);
     });
+  }
+
+  const elanRows = parseElanLines(lines);
+  if(elanRows.length){
+    pdfRows = elanRows;
+    return;
   }
 
   const dateRe = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/;
@@ -658,7 +755,7 @@ function renderPdfTable(){
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td contenteditable="true" data-field="date" data-idx="${idx}">${fmtDate(r.date)}</td>
-      <td contenteditable="true" data-field="desc" data-idx="${idx}">${r.desc}</td>
+      <td contenteditable="true" data-field="desc" data-idx="${idx}">${escapeHtml(r.desc)}</td>
       <td contenteditable="true" data-field="amount" class="num" data-idx="${idx}">${fmtAmt(r.amount)}</td>
       <td class="row-del" data-idx="${idx}">✕</td>
     `;
@@ -694,30 +791,66 @@ document.getElementById('pdfAddRow').addEventListener('click', ()=>{
 });
 
 function runMatch(){
-  const bcPool = bcRows.map((r,i)=>({...r, _i:i}));
-  const matched = [];
-  const unmatchedStatement = [];
+  const tol = Math.max(0, parseInt(document.getElementById('dateTolerance').value,10) || 0);
+  const dayDiff = (a,b)=> Math.round(Math.abs(a - b) / 86400000);
 
-  pdfRows.forEach(sRow=>{
-    let best = null;
-    bcPool.forEach(bRow=>{
-      if(bRow._used) return;
-      if(best) return;
-      const amtDiff = Math.abs(sRow.amount - bRow.amount);
-      if(amtDiff > 0.01) return;
-      const dayDiff = Math.abs((sRow.date - bRow.date) / 86400000);
-      if(dayDiff > 0) return;
-      best = bRow;
+  // Collect every same-amount pair within the date window, then pair up best-first:
+  // same cardholder before different cardholder, then closest date.
+  const candidates = [];
+  pdfRows.forEach((sRow, si)=>{
+    const holder = (sRow.cardholder || '').toUpperCase();
+    bcRows.forEach((bRow, bi)=>{
+      if(Math.abs(sRow.amount - bRow.amount) > 0.005) return;
+      let dd = dayDiff(sRow.date, bRow.date);
+      if(sRow.tranDate) dd = Math.min(dd, dayDiff(sRow.tranDate, bRow.date));
+      if(dd > tol) return;
+      const sameHolder = holder && bRow.desc.toUpperCase().startsWith(holder) ? 0 : 1;
+      candidates.push({si, bi, dd, sameHolder});
     });
-    if(best){
-      best._used = true;
-      matched.push({statement: sRow, bc: best});
-    } else {
-      unmatchedStatement.push(sRow);
-    }
   });
+  candidates.sort((a,b)=> a.sameHolder - b.sameHolder || a.dd - b.dd || a.si - b.si || a.bi - b.bi);
 
-  const unmatchedBC = bcPool.filter(r=>!r._used);
+  const sUsed = new Set(), bUsed = new Set();
+  const pairs = [];
+  candidates.forEach(c=>{
+    if(sUsed.has(c.si) || bUsed.has(c.bi)) return;
+    sUsed.add(c.si); bUsed.add(c.bi);
+    pairs.push(c);
+  });
+  pairs.sort((a,b)=> a.si - b.si);
+
+  const matched = pairs.map(c=>({statement: pdfRows[c.si], bc: bcRows[c.bi]}));
+
+  // Second pass: a statement charge split across two ledger postings (e.g. half deducted
+  // from an employee) — two leftover ledger rows in the date window that sum to it.
+  const leftB = bcRows.map((r,i)=>i).filter(i=>!bUsed.has(i));
+  if(leftB.length <= 400){
+    pdfRows.forEach((sRow, si)=>{
+      if(sUsed.has(si)) return;
+      const near = leftB.filter(bi=>{
+        if(bUsed.has(bi)) return false;
+        let dd = dayDiff(sRow.date, bcRows[bi].date);
+        if(sRow.tranDate) dd = Math.min(dd, dayDiff(sRow.tranDate, bcRows[bi].date));
+        return dd <= tol;
+      });
+      for(let x=0; x<near.length; x++){
+        for(let y=x+1; y<near.length; y++){
+          const a = bcRows[near[x]], b = bcRows[near[y]];
+          if(Math.abs(a.amount + b.amount - sRow.amount) > 0.005) continue;
+          sUsed.add(si); bUsed.add(near[x]); bUsed.add(near[y]);
+          matched.push({statement: sRow, bc: {
+            date: a.date,
+            desc: `${a.desc} + ${b.desc}`,
+            ref: `${a.ref} + ${b.ref}`,
+            amount: a.amount + b.amount
+          }});
+          return;
+        }
+      }
+    });
+  }
+  const unmatchedStatement = pdfRows.filter((_,i)=>!sUsed.has(i));
+  const unmatchedBC = bcRows.filter((_,i)=>!bUsed.has(i));
   renderResults(matched, unmatchedStatement, unmatchedBC);
 }
 
@@ -747,23 +880,23 @@ function renderResults(matched, unmatchedStatement, unmatchedBC){
   document.getElementById('matchedBody').innerHTML = matched.map(m => `
     <tr>
       <td>${fmtDate(m.statement.date)}</td>
-      <td>${m.statement.desc}</td>
+      <td>${escapeHtml(m.statement.desc)}</td>
       <td class="num">${fmtAmt(m.statement.amount)}</td>
       <td>${fmtDate(m.bc.date)}</td>
-      <td>${m.bc.desc}</td>
-      <td>${m.bc.ref}</td>
+      <td>${escapeHtml(m.bc.desc)}</td>
+      <td>${escapeHtml(m.bc.ref)}</td>
       <td class="num">${fmtAmt(m.bc.amount)}</td>
     </tr>
   `).join('') || `<tr><td colspan="7" class="empty-state">No matches found.</td></tr>`;
 
   document.getElementById('unmatchedStatementCount').textContent = `${unmatchedStatement.length} row(s)`;
   document.getElementById('unmatchedStatementBody').innerHTML = unmatchedStatement.map(r => `
-    <tr><td>${fmtDate(r.date)}</td><td>${r.desc}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
+    <tr><td>${fmtDate(r.date)}</td><td>${escapeHtml(r.desc)}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
   `).join('') || `<tr><td colspan="3" class="empty-state">Everything on the statement was matched.</td></tr>`;
 
   document.getElementById('unmatchedBCCount').textContent = `${unmatchedBC.length} row(s)`;
   document.getElementById('unmatchedBCBody').innerHTML = unmatchedBC.map(r => `
-    <tr><td>${fmtDate(r.date)}</td><td>${r.desc}</td><td>${r.ref}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
+    <tr><td>${fmtDate(r.date)}</td><td>${escapeHtml(r.desc)}</td><td>${escapeHtml(r.ref)}</td><td class="num">${fmtAmt(r.amount)}</td></tr>
   `).join('') || `<tr><td colspan="4" class="empty-state">Every ledger posting was matched to the statement.</td></tr>`;
 
   window._reconData = {matched, unmatchedStatement, unmatchedBC};
@@ -787,15 +920,22 @@ document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
     btn.disabled = false;
     return;
   }
+  if(!pdfRows.length){
+    statusEl.className = 'status-line err';
+    statusEl.textContent = 'No transactions were found in the PDF. If it is a scanned image rather than a text PDF, it cannot be read.';
+    btn.disabled = false;
+    return;
+  }
 
+  if(workbookPromise){
+    try{ await workbookPromise; }catch(e){}
+  }
   if(!currentWorkbook){
     statusEl.className = 'status-line err';
     statusEl.textContent = 'Could not read the ledger file.';
     btn.disabled = false;
     return;
   }
-  const sheetName = document.getElementById('sheetSelect').value || currentWorkbook.SheetNames[0];
-  populateSheetColumns(sheetName);
   const res = buildBcRows();
   if(!res.ok){
     statusEl.className = 'status-line err';
@@ -806,7 +946,7 @@ document.getElementById('runMatchBtn').addEventListener('click', async ()=>{
 
   runMatch();
   statusEl.className = 'status-line ok';
-  statusEl.textContent = `Extracted ${pdfRows.length} statement row(s), loaded ${bcRows.length} ledger row(s)${res.skipped ? ` (${res.skipped} skipped)` : ''}. Matched exact date + amount.`;
+  statusEl.textContent = `Extracted ${pdfRows.length} statement row(s), loaded ${bcRows.length} ledger row(s)${res.skipped ? ` (${res.skipped} skipped)` : ''}${res.flipped ? ', ledger signs reversed to match the statement' : ''}. Matched on amount + date (±${document.getElementById('dateTolerance').value || 0} days).`;
   btn.disabled = false;
   document.getElementById('resultsWrap').scrollIntoView({behavior:'smooth', block:'start'});
 });
